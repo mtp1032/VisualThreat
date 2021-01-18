@@ -55,7 +55,7 @@ local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
+local VT_HEALING_RECEIVED           = grp.VT_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
@@ -66,7 +66,7 @@ local function handleEvent( stats )
  
     -- we're only interested in damage taken by a member
     -- of our party.
-    local unitId = grp:getUnitIdByName( targetName )
+    local unitId = grp:getUnitIdByName( targetName ) 
     local inMyParty = UnitPlayerOrPetInParty( unitId )
     if not inMyParty then
         return
@@ -94,12 +94,12 @@ local function handleEvent( stats )
         else
             amountDamaged = stats[15]
         end
-        grp:updateMemberEntry( targetName, true, amountDamaged )
+        grp:updateDamageTaken( targetName, amountDamaged )
     end
     ------------- HEALING TAKEN --------------------
     if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
         local amountHealed = stats[AMOUNT_HEALED]
-        grp:updateMemberEntry( targetName, false, amountHealed )
+        grp:updateHealingReceived( targetName, amountHealed )
     end
     ------------- PET SUMMONED --------------------
     if  subEvent == "SPELL_SUMMON" then

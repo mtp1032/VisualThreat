@@ -27,7 +27,7 @@ grp.VT_AGGRO_STATUS        = 5
 grp.VT_THREAT_VALUE        = 6     
 grp.VT_THREAT_VALUE_RATIO  = 7
 grp.VT_DAMAGE_TAKEN        = 8
-grp.VT_HEALING_TAKEN       = 9
+grp.VT_HEALING_RECEIVED       = 9
 grp.VT_BUTTON              = 10
 grp.VT_NUM_ELEMENTS     = grp.VT_BUTTON
 
@@ -40,15 +40,15 @@ local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
+local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 grp.playersParty = {}
 local playersParty = grp.playersParty
 
-local partypet = {"partypet1", "partypet2", "partypet3", "partypet4", "partypet5"}
-local party = {"party1", "party2", "party3", "party4", "party5"}
+local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
+local party     = {"party1",    "party2",    "party3",    "party4" }
 
 local function printPartyEntry( nvp )
     if nvp[VT_PET_OWNER] ~= nil then
@@ -66,7 +66,8 @@ local function copyEntries( v, e)   -- *** Copies e into v ***
     v[VT_AGGRO_STATUS]          = e[VT_AGGRO_STATUS]
     v[VT_THREAT_VALUE]          = e[VT_THREAT_VALUE]
     v[VT_THREAT_VALUE_RATIO]    = e[VT_THREAT_VALUE_RATIO]
-    v[VT_HEALING_TAKEN]         = e[VT_HEALING_TAKEN]
+    v[VT_HEALING_RECEIVED]      = e[VT_HEALING_RECEIVED]
+    v[VT_BUTTON]                = e[VT_BUTTON]
 end
 local function isMember( memberName )
     local isMember = false
@@ -106,7 +107,7 @@ local function createNewEntry( unitName, unitId, ownerName, mobId )
     end
     -- printPartyEntry( newEntry )
 	return newEntry, r
-end
+end 
 function grp:getUnitIdByName( memberName )
     for _, npv in ipairs( playersParty ) do
         if npv[1] == memberName then
@@ -146,23 +147,23 @@ function grp:getDamageTaken( memberName )
     end
     return damageTaken
 end
-function grp:updateHealingTaken( memberName, healing )
+function grp:updateHealingReceived( memberName, healing )
     for _, v in ipairs( playersParty ) do
         -- if the entry has already been inserted then just return
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_HEALING_TAKEN] = V[VT_HEALING_TAKEN] + healing
+            v[VT_HEALING_RECEIVED] = V[VT_HEALING_RECEIVED] + healing
         end
     end
 end
-function grp:getHealingTaken( memberName )
-    local healingTaken = 0
+function grp:getHealingReceived( memberName )
+    local HealingReceived = 0
     for _, v in ipairs( playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            healingTaken = v[VT_HEALING_TAKEN]
+            HealingReceived = v[VT_HEALING_RECEIVED]
             break
         end
     end
-    return healingTaken
+    return HealingReceived
 end
 function grp:setThreatValue( memberName, threatValue)
     for _, v in ipairs( playersParty ) do

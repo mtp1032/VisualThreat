@@ -22,7 +22,7 @@ local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
+local VT_HEALING_RECEIVED           = grp.VT_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
@@ -129,9 +129,9 @@ local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
+local VT_HEALING_RECEIVED           = grp.VT_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
-local VT_NUM_ELEMENTS            = grp.VT_BUTTON
+local VT_NUM_ELEMENTS            = grp.VT_BUTTON 
 
 local entries = {}
 entries[1] = {"MIKE",         "player", nil, 4 }
@@ -148,8 +148,17 @@ SlashCmdList["COMBAT_TESTS"] = function( num )
 end
 ---------------------- BUTTON TESTS -----------------------
 
- SLASH_BUTTON_TESTS1 = "/btn1"
+ SLASH_BUTTON_TESTS1 = "/btn"
  SlashCmdList["BUTTON_TESTS"] = function( num )
-    
-     return
+
+    local playersParty, r = grp:initPlayersParty()
+    if playersParty == nil or r[1] == STATUS_FAILURE then
+        local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
+        msg:post(s)
+        return
+    end
+    btn.threatIconFrame = btn:createIconFrame()
+    btn:updatePortraitButtons( btn.threatIconFrame )
+
+return
  end

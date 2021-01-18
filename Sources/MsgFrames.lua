@@ -46,7 +46,7 @@ local function createClearButton( f, placement, offX, offY )
     clearButton:SetPoint(placement, f, offX, offY)
     clearButton:SetHeight(25)
     clearButton:SetWidth(70)
-    clearButton:SetText(L["CLEAR_BUTTON_TEXT"])
+    clearButton:SetText("Clear")
     clearButton:SetScript("OnClick", 
         function(self)
             self:GetParent().Text:EnableMouse( false )    
@@ -122,7 +122,7 @@ local function createSelectButton( f, placement, offX, offY )
 
     selectButton:SetHeight(25)
     selectButton:SetWidth(70)
-    selectButton:SetText(L["SELECT_BUTTON_TEXT"])
+    selectButton:SetText("Select")
     selectButton:SetScript("OnClick", 
         function(self)
             self:GetParent().Text:EnableMouse( true )    
@@ -188,7 +188,7 @@ function msg:createHelpFrame( title )
 	f.title:SetText( title)
 	
 	createTextDisplay(f)
-	createSelectButton(f, "BOTTOMRIGHT", 5, 5)
+	createSelectButton(f, "BOTTOMRIGHT", -10, 5)
 	createClearButton(f,"BOTTOMLEFT", 5,5 )
     return f
 end
@@ -216,7 +216,7 @@ function msg:createErrorMsgFrame(title)
     createResizeButton(f)
     createTextDisplay(f)
     createReloadButton(f, "BOTTOMLEFT",f, 5, 5)
-    createSelectButton(f, "BOTTOMRIGHT",f, 5, 5)
+    createSelectButton(f, "BOTTOMRIGHT",f, -10, 5)
     createClearButton(f, "BOTTOM",f, 5, 5)
     return f
 end
@@ -247,7 +247,7 @@ function msg:createMsgFrame( title )
 
 	createResizeButton(f)
 	createTextDisplay(f)
-	createSelectButton(f,"BOTTOMRIGHT", 5,5 )
+	createSelectButton(f,"BOTTOMRIGHT", -10,5 )
     createClearButton(f, "BOTTOMLEFT", 5, 5)
     return f
 end

@@ -26,7 +26,7 @@ local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
+local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
@@ -58,105 +58,94 @@ local function createEmptyButton(parent)
 end
 local function updateButton( entry, button )
     local unitId        = entry[VT_UNIT_ID]
-    local name          = entry[VT_UNIT_NAME]
+    local playerName    = entry[VT_UNIT_NAME]
     local threat        = entry[VT_THREAT_VALUE_RATIO]*100
     local damageTaken   = entry[VT_DAMAGE_TAKEN]
-    local healingTaken  = entry[VT_HEALING_TAKEN]
+    local HealingReceived  = entry[VT_HEALING_RECEIVED]
 
     SetPortraitTexture( button.Portrait, unitId )
-    button.Name:SetText( name )
+    button.Name:SetText( playerName )
     local str = sprintf( "%d%%", threat )
     button.Threat:SetText( str )
-    msg:post( sprintf("%s hit for %d damage. Has %d%% threat\n", name, damageTaken, threat ))
+    msg:post( sprintf("%s took %d damage and has %d%% threat\n", playerName, damageTaken, threat ))
 end
 
 function btn:createIconFrame()
-  local playersParty = grp:getPlayersParty()
-  if playersParty == nil then
+
+  -- PARTY STUFF
+  if grp.playersParty == nil then
     print("this is a problem")
+    return
   end
-  local partyCount = #playersParty
+  local partyCount = #grp.playersParty
+
+  ------- CREATE THE FRAME FOR THE PORTRAIT ICONS ---------------
   local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
-
   f:SetSize(BUTTON_WIDTH+10,BUTTON_HEIGHT*partyCount+28)
-
-  ------------------- SET POINT ---------------------
+  f.TitleText:SetText("Threat Stack")
+  ------------ SET AND GET FRAME POSITION ---------------------
   f:SetPoint( framePosition[1], 
                 framePosition[2], 
                 framePosition[3], 
                 framePosition[4], 
                 framePosition[5] )
-  f.TitleText:SetText("Threat Stack")
-  ------------------- SET POINT ---------------------
-
-
-  ------------------- GET POINT ----------------------
   f:SetMovable(true)
   f:SetScript("OnMouseDown",f.StartMoving)
   f:SetScript("OnMouseUp", function(self)
     f:StopMovingOrSizing()
     framePosition = {f:GetPoint()}
-  ------------------ GET POINT ----------------------
   end)
 
-    -- create and position icon buttons (portraits) anchored to the parent.
-    -- create one button for each party member.
-    f.unitButtons = {}
+    ---- CREATE A PORTRAIT BUTTON FOR EACH PARTY MEMBER -------
+    f.portraitButtons = {} 
 
     local i = 1
-    for _, entry in ipairs( playersParty ) do
-      f.unitButtons[i] = createEmptyButton(f)
-      f.unitButtons[i]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
-      f.unitButtons[i]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
-      f.unitButtons[i]:SetScript("OnClick", function(self)
+    for _, entry in ipairs( grp.playersParty ) do
+      f.portraitButtons[i] = createEmptyButton(f)
+
+      f.portraitButtons[i]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
+      f.portraitButtons[i]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+
+      ----- SET WHAT HAPPENS WHEN A PORTRAIT IS CLICKED -----------
+      f.portraitButtons[i]:SetScript("OnClick", function(self)
         iconName = self.Name:GetText()
+        E:where()
         if iconName ~= nil then
-          local dmg = ch:getDamageByName( iconName )
-          msg:post( sprintf("OnClick: %s damage: %d\n", iconName, dmg ))
-          local attackerId = sprintf("%s-target", iconName)
-          enemyTargetingPlayer = UnitName( attackerId )
-          if enemyTargetingPlayer ~= nil then
-            msg:post(sprintf("Target of %s - %s\n", iconName, enemyTargetingPlayer ))
-          end
+          local dmg = grp:getDamageTaken( iconName )
+          msg:post( sprintf("ONCLICK: Damage taken by %s: %d\n", iconName, dmg ))
         end
       end)
-      -- local alphaFactor = 0.2
-      -- local alpha = i - (i - 1)*(alphaFactor)
-      -- f.unitButtons[i]:SetAlpha( alpha )
-      entry[VT_BUTTON] = f.unitButtons[i]
-      updateButton( entry, f.unitButtons[i] )
+      entry[VT_BUTTON] = f.portraitButtons[i]
+      updateButton( entry, f.portraitButtons[i] )
       i = i + 1
     end
     return f
 end
 -- called from ThreatEventHandler
-function btn:updatePortraitButtons( iconFrame )
-  local playersParty = grp:getPlayersParty()
-    for _, entry in ipairs( playersParty) do        
+function btn:updatePortraitButtons()
+    for _, entry in ipairs( grp.playersParty ) do        
       local button = entry[VT_BUTTON]
       if button ~= nil then
           updateButton( entry, button )
       end
     end
 
-    -- sort the playersParty and then copy the sorted
-    -- table into the f.unitButtons table.
-    table.sort( playersParty, highToLow )
+    -- sort the grp.playersParty and then copy the sorted
+    -- table into the f.portraitButtons table.
+    table.sort( grp.playersParty, highToLow )
 
     local i = 1
-    for _, entry in ipairs( playersParty ) do
+    for _, entry in ipairs( grp.playersParty ) do
         local button = entry[VT_BUTTON]
         if button ~= nil then
           button:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
         end
         i = i + 1
     end
-
     return f
 end
 
 btn.threatIconFrame = nil 
-local threatIconFrame = btn.threatIconFrame
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")			-- arg1: boolean isInitialLogin, arg2: boolean isReloadingUI
@@ -172,62 +161,68 @@ function( self, event, ... )
     ------------------------------ PLAYER ENTERING WORLD -----------------
     if event == "PLAYER_ENTERING_WORLD" then
 
-        local playersParty, r = grp:initPlayersParty()
-        if playersParty == nil or r[1] == STATUS_FAILURE then
-            local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
-            msg:post(s)
-            return
-        end     
-        threatIconFrame = btn:createIconFrame()
-        btn:updatePortraitButtons( threatIconFrame )
-        return
-    end
---------------------------- GROUP ROSTER UPDATE ---------------------
-    if event == "GROUP_ROSTER_UPDATE" then
-        local playersParty, r = grp:initPlayersParty()
-        if playersParty == nil or r[1] == STATUS_FAILURE then
+        grp.playersParty, r = grp:initPlayersParty()
+        if grp.playersParty == nil or r[1] == STATUS_FAILURE then
             local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
             msg:post(s)
             return
         end
-        threatIconFrame = btn:createIconFrame()
-        btn:updatePortraitButtons( threatIconFrame )
+        if btn.threatIconFrame == nil then
+          btn.threatIconFrame = btn:createIconFrame()
+        end
+        btn:updatePortraitButtons()
+        return
+    end
+--------------------------- GROUP ROSTER UPDATE ---------------------
+    if event == "GROUP_ROSTER_UPDATE" then
+        grp.playersParty, r = grp:initPlayersParty()
+        if grp.playersParty == nil or r[1] == STATUS_FAILURE then
+            local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
+            msg:post(s)
+            return
+        end
+        btn.threatIconFrame = btn:createIconFrame()
+        btn:updatePortraitButtons()
         return
     end
     if event == "GROUP_JOINED" then
-      local playersParty, r = grp:initPlayersParty()
-      if playersParty == nil or r[1] == STATUS_FAILURE then
+      grp.playersParty, r = grp:initPlayersParty()
+      if grp.playersParty == nil or r[1] == STATUS_FAILURE then
           local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
           msg:post(s)
           return
       end
-      threatIconFrame = btn:createIconFrame()
-      btn:updatePortraitButtons( threatIconFrame )
-    return
+      if btn.threatIconFrame == nil then
+        btn.threatIconFrame = btn:createIconFrame()
+      end
+      btn:updatePortraitButtons( btn.threatIconFrame )
+      return
     end
-
     if event == "GROUP_LEFT" then
-      local playersParty, r = grp:initPlayersParty()
-      if playersParty == nil or r[1] == STATUS_FAILURE then
+      grp.playersParty, r = grp:initPlayersParty()
+      if grp.playersParty == nil or r[1] == STATUS_FAILURE then
           local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
           msg:post(s)
           return
       end
-      threatIconFrame = btn:createIconFrame()
-      btn:updatePortraitButtons( threatIconFrame )
+      if btn.threatIconFrame == nil then
+        btn.threatIconFrame = btn:createIconFrame()
+      end
+      btn:updatePortraitButtons()
     return
     end
-
     if event == "PET_DISMISS_START" then
-      local playersParty, r = grp:initPlayersParty()
-      if playersParty == nil or r[1] == STATUS_FAILURE then
+      grp.playersParty, r = grp:initPlayersParty()
+      if grp.playersParty == nil or r[1] == STATUS_FAILURE then
           local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
           msg:post(s)
           return
       end
-      threatIconFrame = btn:createIconFrame()
-      btn:updatePortraitButtons( threatIconFrame )
-    return
+      if btn.threatIconFrame == nil then
+        btn.threatIconFrame = btn:createIconFrame()
+      end
+      btn:updatePortraitButtons()
+      return
     end
 end)
 

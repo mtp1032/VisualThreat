@@ -49,6 +49,13 @@ end
 
 framePositionSaved = false
 
+core.foo = nil
+local foo = core.foo
+
+function core:printFoo()
+    core:printMsg( foo )
+end
+
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
@@ -56,7 +63,6 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function( self, event, arg1 )
 
     if event == "ADDON_LOADED" and arg1 == "VisualThreat" then
-        DEFAULT_CHAT_FRAME:AddMessage(sprintf("[Core.lua:61]framePositionSaved %s", tostring( framePositionSaved)) )
         -- The framePosition array has been loaded by this point
         if framePositionSaved == false  then
             framePosition = { "CENTER", nil, "CENTER", 0, 0 }

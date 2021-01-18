@@ -1,4 +1,4 @@
-## Interface: 90002
+## Interface: 90002 
 ## Title: VisualThreat
 ## Notes: A Graphical VisualThreat Display
 ## Author: Michael Peterson
@@ -18,7 +18,6 @@ Sources\Errors.lua
 Sources\MsgFrames.lua
 Sources\GroupEventHandler.lua
 Sources\Buttons.lua
-
 Sources\CombatEventHandler.lua
 Sources\ThreatEventHandler.lua
 ##--------------------------------------------
