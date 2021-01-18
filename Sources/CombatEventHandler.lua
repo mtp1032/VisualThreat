@@ -1,151 +1,116 @@
 --------------------------------------------------------------------------------------
 -- combatEventHandler.lua
 -- AUTHOR: Michael Peterson
--- ORIGINAL DATE: 10 October, 2019
+-- ORIGINAL DATE: 10 October, 2020
 --------------------------------------------------------------------------------------
 local _, VisualThreat = ...
 VisualThreat.combatEventHandler = {}
-ceh = VisualThreat.combatEventHandler
+ch = VisualThreat.combatEventHandler
 
 local L = VisualThreat.L
 local E = errors
 local sprintf = _G.string.format
 
--- return true if the source or target is a pet
-local function unitIsPet( flags )
-	return bit.band( flags, COMBATLOG_OBJECT_TYPE_MASK ) == bit.band( flags, COMBATLOG_OBJECT_TYPE_PET )
-end
-local function getPartyIdByName( sourceName )
-    if UnitName("player") == sourceName then
-        return "player"
-    end
+local STATUS_SUCCESS    = E.STATUS_SUCCESS
+local STATUS_FAILURE    = E.STATUS_FAILURE
+local SUCCESS           = E.SUCCESS
 
-    local partyNames = GetHomePartyInfo()
-    if partyNames == nil then
-        return nil
-    end
+-- CELU base parameters
+local TIMESTAMP			= 1		-- valid for all subEvents
+local SUBEVENT    		= 2		-- valid for all subEvents
+local HIDECASTER      	= 3		-- valid for all subEvents
+local SOURCEGUID      	= 4 	-- valid for all subEvents
+local SOURCENAME      	= 5 	-- valid for all subEvents
+local SOURCEFLAGS     	= 6 	-- valid for all subEvents
+local SOURCERAIDFLAGS 	= 7 	-- valid for all subEvents
+local TARGETGUID      	= 8 	-- valid for all subEvents
+local TARGETNAME      	= 9 	-- valid for all subEvents
+local TARGETFLAGS     	= 10 	-- valid for all subEvents
+local TARGETRAIDFLAGS 	= 11	-- valid for all subEvents
 
-    local n = #partyNames
-    for i = 1, n do
-        if partyNames[i] == sourceName then
-            partyId = "party"..tostring(i)
-            return partyId
-        end
-    end
-    return nil
-end
+local SPELLID         	= 12 	-- amountDmg
+local SPELLNAME       	= 13  	-- overKill
+local SCHOOL		    = 14 	-- schoolIndex
+local AMOUNT_DAMAGED	= 15
+local AMOUNT_HEALED		= 15
+local MISSTYPE			= 15    
+local OVERKILL        	= 16	-- absorbed  (integer)
+local OVERHEALED		= 16
+local SCHOOL_INDEX    	= 17	-- critical  (boolean)
+local RESISTED        	= 18 	-- glancing  (boolean)
+local BLOCKED         	= 19 	-- crushing  (boolean)
+local ABSORBED        	= 20 	-- isOffHand (boolean)
+local CRITICAL        	= 21	-- <unused>
+local GLANCING        	= 22	-- <unused>
+local CRUSHING        	= 23	-- <unused>
+local OFFHAND			= 24
 
--- entry = {unitId, damage}
-local damageTable = {}
+-- indices into the partyMembersTable entry
 
--- e.g., Usage
---          local unitId = "pet"
---          local entry = { unitId, 465 }
---          insertDamage( entry )
-local function insertDamage( entry )
-    if #damageTable == 0 then
-        table.insert( damageTable, entry )
-        return
-    end
+local VT_UNIT_NAME               = grp.VT_UNIT_NAME
+local VT_UNIT_ID                 = grp.VT_UNIT_ID   
+local VT_PET_OWNER               = grp.VT_PET_OWNER 
+local VT_MOB_ID                  = grp.VT_MOB_ID                  
+local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS              
+local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
+local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
+local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
+local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
+local VT_BUTTON                  = grp.VT_BUTTON
+local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
-    for _, v in ipairs( damageTable ) do
-        if v[1] == entry[1] then
-            v[2] = v[2] + entry[2]
-            return
-        end
-    end
-    table.insert( damageTable, entry )
-end
-function ceh:getDamageByUnitId(unitId )
-    local damage = 0
-    for _, v in ipairs( damageTable ) do
-        if v[1] == unitId then
-            damage = v[2]
-        end
-    end
-    return damage
-end
-function ceh:getDamageByPlayerName( playerName )
-    local damage = 0
-    for _, v in ipairs( damageTable ) do
-        local name = UnitName( v[1] )
-        if name == playerName then
-            damage = v[2]
-        end
-    end
-    return damage
-end
-function ceh:removePlayerByUnitId( unitId )
-    local tmpTable = {}
-    for _, v in ipairs( damageTable ) do
-        if v[1] ~= unitId then
-            table.insert(tmpTable, v )
-        end
-    end
-    damageTable = {}
-    for _, v in ipairs( tmpTable ) do
-        table.insert( damageTable, v )
-    end
-end
-function ceh:removePlayerByName( playerName )
-    local tmpTable = {}
-    for _, v in ipairs( damageTable ) do
-        local name = UnitName( v[1])
-        if playerName ~= name then
-            table.insert(tmpTable, v )
-        end
-    end
-    damageTable = {}
-    for _, v in ipairs( tmpTable ) do
-        table.insert( damageTable, v )
-    end
-end
-
-local function OnEvent( self, event, ...)
-
-    if event ~= "COMBAT_LOG_EVENT_UNFILTERED" then
-        return
-    end
-
-    stats = {CombatLogGetCurrentEventInfo() }
-    local sourceName = stats[5]
-    
-    -- if the sourceName is NOT a member of the party, then unitId will be nil.
-    local unitId = getPartyIdByName( sourceName )
-    if unitId == nil then
-        return
-    end
+------------- FUNCTIONS LOCAL TO THIS FILE ----------------------------
+local function handleEvent( stats )
+    local sourceName = stats[SOURCENAME]
+    local targetName = stats[TARGETNAME]
+ 
+    -- we're only interested in damage taken by a member
+    -- of our party.
+    local unitId = grp:getUnitIdByName( targetName )
     local inMyParty = UnitPlayerOrPetInParty( unitId )
-    if inMyParty == nil then
+    if not inMyParty then
         return
     end
 
-    local subEvent = stats[2]
-    if subEvent == "SPELL_SUMMON" then
-        return
-    end
-
-    if subEvent ~= "SWING_DAMAGE" and
+    local subEvent = stats[SUBEVENT]
+    if  subEvent ~= "SPELL_HEAL" and
+        subEvent ~= "SPELL_PERIODIC_HEAL" and 
+        subEvent ~= "SPELL_SUMMON" and
+        subEvent ~= "SWING_DAMAGE" and
         subEvent ~= "SPELL_DAMAGE" and
         subEvent ~= "SPELL_PERIODIC_DAMAGE" and
         subEvent ~= "RANGE_DAMAGE" then
-        return
+            return
     end
-    local damage = stats[15]
-
-    if subEvent == "SWING_DAMAGE" then
-        damage = stats[12]
+    -------------- DAMAGE TAKEN ---------------
+    if  subEvent == "SWING_DAMAGE" or
+        subEvent == "SPELL_DAMAGE" or
+        subEvent == "SPELL_PERIODIC_DAMAGE" or
+        subEvent == "RANGE_DAMAGE" then
+        
+        local amountDamaged = 0
+        if subEvent == "SWING_DAMAGE" then
+            amountDamaged = stats[12]
+        else
+            amountDamaged = stats[15]
+        end
+        grp:updateMemberEntry( targetName, true, amountDamaged )
     end
-
-    local entry = {unitId, damage}
-    insertDamage( entry )
+    ------------- HEALING TAKEN --------------------
+    if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
+        local amountHealed = stats[AMOUNT_HEALED]
+        grp:updateMemberEntry( targetName, false, amountHealed )
+    end
+    ------------- PET SUMMONED --------------------
+    if  subEvent == "SPELL_SUMMON" then
+        -- not implemented yet
+    end   
 end
 
+local function OnEvent( self, event, ...)
+    local stats = {CombatLogGetCurrentEventInfo() }
+    handleEvent( stats )
+end
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-
 eventFrame:SetScript("OnEvent", OnEvent )
-
-SLASH_COMBAT_TEST1 = "/combat"
-SlashCmdList["COMBAT_TEST"] = function( num )
-end

@@ -2,8 +2,9 @@
 ## Title: VisualThreat
 ## Notes: A Graphical VisualThreat Display
 ## Author: Michael Peterson
-## SavedVariablesPerCharacter: IconFramePositionDB
-## Version: 1.0
+## SavedVariablesPerCharacter: framePosition, framePositionSaved
+## SavedVariables:
+## Version: 0.5
 ## X-Expansion: Shadowlands
 ## 9 November, 2020
 ## OptionalDeps:
@@ -15,11 +16,12 @@ Locales\enUS.lua
 Sources\Core.lua
 Sources\Errors.lua
 Sources\MsgFrames.lua
-Sources\Buttons.lua
 Sources\GroupEventHandler.lua
+Sources\Buttons.lua
+
 Sources\CombatEventHandler.lua
 Sources\ThreatEventHandler.lua
-
 ##--------------------------------------------
 ## UNIT UnitTests
 ##--------------------------------------------
+Sources\UnitTests.lua

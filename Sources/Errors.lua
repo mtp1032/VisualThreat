@@ -9,18 +9,28 @@ errors = VisualThreat.Errors
 local sprintf = _G.string.format
 
 local L = VisualThreat.L
+local E = errors
 --                      Error messages associated with function parameters
 
 --                      The Result Table
 local DISPLAY_TIME = 20
 
+errors.mt 				= "Unused"		-- the empty string
+local mt 				= errors.mt
+
 errors.STATUS_SUCCESS = 1
 errors.STATUS_FAILURE = 0
+errors.SUCCESS = {errors.STATUS_SUCCESS, nil, nil }
+
+local STATUS_SUCCESS 	= errors.STATUS_SUCCESS
+local STATUS_FAILURE 	= errors.STATUS_FAILURE
+local SUCCESS 			= errors.SUCCESS
+
 
 ---------------------------------------------------------------------------------------------------
 --                      LOCAL FUNCTIONS
 ----------------------------------------------------------------------------------------------------
-function errors:simplifyStackTrace( stackTrace )
+local function simplifyStackTrace( stackTrace )
 	local startPos, endPos = string.find( stackTrace, '\'' )
 	stackTrace = string.sub( stackTrace, 1, startPos )
 	stackTrace = string.gsub( stackTrace, "Interface\\AddOns\\", "")
@@ -71,24 +81,38 @@ end
 ---------------------------------------------------------------------------------------------------
 --                      PUBLIC/EXPORTED FUNCTIONS
 ----------------------------------------------------------------------------------------------------
-function errors:setErrorResult( errMsg, stackTrace )
+
+-- USAGE:
+--			if not check(result, msg ) then
+--				return( result )
+--			end
+function errors:check(result, msg )
+	local result = SUCCESS
+	local successful = true
+
+	if result[1] ~= STATUS_SUCCESS then
+		successful = false
+        local stackFrame = debugstack()
+        local playerName = UnitName("player")
+        local s = sprintf("Entry not created for %s.\n", player )
+        return E:setResult( s, stackFrame )   
+	end
+	return successful, result
+end
+
+function errors:setResult( errMsg, stackTrace )
 	local result = {STATUS_FAILURE, errMsg, stackTrace}
 	return result
 end
-
-function errors:printErrorResult( result )
-	local status = nil
+function errors:postResult( result )
 	if result[1] == STATUS_SUCCESS then
-		status = "SUCCESS"
-	else
-		status = "FAILURE"
+		return
 	end
-	
+
 	local reason = result[2]
-	local errorLocation = result[3]
-	local str = sprintf("[%s] %s %s\n", status, reason, errorLocation  )
-	UIErrorsFrame:SetTimeVisible(DISPLAY_TIME)
-	UIErrorsFrame:AddMessage( str, 1.0, 0.0, 0.0 )
+	local stackTrace = result[3]
+	local str = sprintf("%s\n\n%s\n", reason, stackTrace  )
+	msg:post( str )
 end
 function errors:where( msg )
 	local fn = getFileAndLineNo( debugstack(2) )

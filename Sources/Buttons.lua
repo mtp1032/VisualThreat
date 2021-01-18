@@ -4,47 +4,34 @@
 -- ORIGINAL DATE: 15 December, 2020
 -- REMARKS: This derived directly from the original code that appeared in the WoW UI 
 --          forums written Gello
+-- https://wow.gamepedia.com/API_Region_GetPoint
+-- https://wow.gamepedia.com/API_Region_SetPoint 
+
 --------------------------------------------------------------------------------------
 local _, VisualThreat = ...
 VisualThreat.Buttons = {}
 btn = VisualThreat.Buttons
 local L = VisualThreat.L
-local E = errors
+local E = errors 
 local sprintf = _G.string.format 
 
 local BUTTON_WIDTH = 150
 local BUTTON_HEIGHT = 40
 
--- element indices into the playerMembersTable (see GroupEventHandler.lua )
-btn.ENTRY_UNIT_NAME               = 1   -- playerName or petName
-btn.ENTRY_UNIT_ID                 = 2   -- UUID of player or pet
-btn.ENTRY_PET_OWNER               = 3   --  petOwner, nil if not a pet
-btn.ENTRY_MOB_ID                  = 4                  
-btn.ENTRY_AGGRO_STATUS            = 5              
-btn.ENTRY_THREAT_VALUE            = 6             
-btn.ENTRY_THREAT_VALUE_RATIO      = 7   
-btn.ENTRY_BUTTON                  = 8 
-btn.ENTRY_NUM_ELEMENTS            = btn.ENTRY_BUTTON
+local VT_UNIT_NAME               = grp.VT_UNIT_NAME
+local VT_UNIT_ID                 = grp.VT_UNIT_ID   
+local VT_PET_OWNER               = grp.VT_PET_OWNER 
+local VT_MOB_ID                  = grp.VT_MOB_ID                  
+local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS              
+local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
+local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
+local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
+local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
+local VT_BUTTON                  = grp.VT_BUTTON
+local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
-local ENTRY_UNIT_NAME               = btn.ENTRY_UNIT_NAME -- playerName or petName             
-local ENTRY_UNIT_ID 		            = btn.ENTRY_UNIT_ID	  -- corresponding playerName or petName
-local ENTRY_PET_OWNER               = btn.ENTRY_PET_OWNER -- petOwnerName (nil if ENTRY_UNIT_ID not a petId )
-local ENTRY_MOB_ID			            = btn.ENTRY_MOB_ID    -- UUID of mob targeting player                    
-local ENTRY_AGGRO_STATUS 		        = btn.ENTRY_AGGRO_STATUS  -- 1, 2, 3, 4 (see https://wow.gamepedia.com/API_UnitDetailedThreatSituation )             
-local ENTRY_THREAT_VALUE 		        = btn.ENTRY_THREAT_VALUE  --  see https://wow.gamepedia.com/API_UnitDetailedThreatSituation               
-local ENTRY_THREAT_VALUE_RATIO      = btn.ENTRY_THREAT_VALUE_RATIO  -- calculated: (playerThreatValue/totalThreatValue)
-local ENTRY_BUTTON                  = btn.ENTRY_BUTTON
-local ENTRY_NUM_ELEMENTS            = btn.ENTRY_BUTTON
-
-
--- https://wow.gamepedia.com/API_Region_GetPoint
--- point, relativeTo, relativePoint, xOfs, yOfs = MyRegion:GetPoint(n)
-
--- https://wow.gamepedia.com/API_Region_SetPoint 
-
--- Utility function to order by threatValue (from highest to lowest)
 local function highToLow( entry1, entry2)
-  return entry1[ENTRY_THREAT_VALUE_RATIO ] > entry2[ENTRY_THREAT_VALUE_RATIO]
+  return entry1[VT_THREAT_VALUE_RATIO ] > entry2[VT_THREAT_VALUE_RATIO]
 end
 
 -- called  by createIconFrame()
@@ -69,66 +56,96 @@ local function createEmptyButton(parent)
 
   return buttonFrame 
 end
-
-function btn:updateButton( entry, button )
-    local unitId  = entry[ENTRY_UNIT_ID]
-    local name    = entry[ENTRY_UNIT_NAME]
-    local threat  = entry[ENTRY_THREAT_VALUE_RATIO]*100
+local function updateButton( entry, button )
+    local unitId        = entry[VT_UNIT_ID]
+    local name          = entry[VT_UNIT_NAME]
+    local threat        = entry[VT_THREAT_VALUE_RATIO]*100
+    local damageTaken   = entry[VT_DAMAGE_TAKEN]
+    local healingTaken  = entry[VT_HEALING_TAKEN]
 
     SetPortraitTexture( button.Portrait, unitId )
     button.Name:SetText( name )
     local str = sprintf( "%d%%", threat )
     button.Threat:SetText( str )
+    msg:post( sprintf("%s hit for %d damage. Has %d%% threat\n", name, damageTaken, threat ))
 end
--- create a vertical display (stack) of icons each of which represents
--- a party member (including pets). The icons will show 0% threat.
-function btn:createIconFrame( partyMembersTable )
 
-  local partyCount = #partyMembersTable
-    local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
-    f:SetSize(BUTTON_WIDTH+10,BUTTON_HEIGHT*partyCount+28)
-    f:SetPoint( "RIGHT")
-    f.TitleText:SetText("Threat Stack")
+function btn:createIconFrame()
+  local playersParty = grp:getPlayersParty()
+  if playersParty == nil then
+    print("this is a problem")
+  end
+  local partyCount = #playersParty
+  local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
 
-    -- make frame movable
-    f:SetMovable(true)
-    f:SetScript("OnMouseDown",f.StartMoving)
-    f:SetScript("OnMouseUp",f.StopMovingOrSizing)
+  f:SetSize(BUTTON_WIDTH+10,BUTTON_HEIGHT*partyCount+28)
+
+  ------------------- SET POINT ---------------------
+  f:SetPoint( framePosition[1], 
+                framePosition[2], 
+                framePosition[3], 
+                framePosition[4], 
+                framePosition[5] )
+  f.TitleText:SetText("Threat Stack")
+  ------------------- SET POINT ---------------------
+
+
+  ------------------- GET POINT ----------------------
+  f:SetMovable(true)
+  f:SetScript("OnMouseDown",f.StartMoving)
+  f:SetScript("OnMouseUp", function(self)
+    f:StopMovingOrSizing()
+    framePosition = {f:GetPoint()}
+  ------------------ GET POINT ----------------------
+  end)
 
     -- create and position icon buttons (portraits) anchored to the parent.
     -- create one button for each party member.
     f.unitButtons = {}
 
     local i = 1
-    for _, entry in ipairs( partyMembersTable ) do
+    for _, entry in ipairs( playersParty ) do
       f.unitButtons[i] = createEmptyButton(f)
       f.unitButtons[i]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
       f.unitButtons[i]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+      f.unitButtons[i]:SetScript("OnClick", function(self)
+        iconName = self.Name:GetText()
+        if iconName ~= nil then
+          local dmg = ch:getDamageByName( iconName )
+          msg:post( sprintf("OnClick: %s damage: %d\n", iconName, dmg ))
+          local attackerId = sprintf("%s-target", iconName)
+          enemyTargetingPlayer = UnitName( attackerId )
+          if enemyTargetingPlayer ~= nil then
+            msg:post(sprintf("Target of %s - %s\n", iconName, enemyTargetingPlayer ))
+          end
+        end
+      end)
       -- local alphaFactor = 0.2
       -- local alpha = i - (i - 1)*(alphaFactor)
       -- f.unitButtons[i]:SetAlpha( alpha )
-      entry[ENTRY_BUTTON] = f.unitButtons[i]
-      btn:updateButton( entry, f.unitButtons[i] )
+      entry[VT_BUTTON] = f.unitButtons[i]
+      updateButton( entry, f.unitButtons[i] )
       i = i + 1
     end
     return f
 end
-
-function btn:updatePortraitButtons(iconFrame, partyMembersTable )
-    for _, entry in ipairs( partyMembersTable) do
-      local button = entry[ENTRY_BUTTON]
+-- called from ThreatEventHandler
+function btn:updatePortraitButtons( iconFrame )
+  local playersParty = grp:getPlayersParty()
+    for _, entry in ipairs( playersParty) do        
+      local button = entry[VT_BUTTON]
       if button ~= nil then
-          btn:updateButton( entry, button )
+          updateButton( entry, button )
       end
     end
 
-    -- sort the partyMembersTable and then copy the sorted
+    -- sort the playersParty and then copy the sorted
     -- table into the f.unitButtons table.
-    table.sort( partyMembersTable, highToLow )
+    table.sort( playersParty, highToLow )
 
     local i = 1
-    for _, entry in ipairs( partyMembersTable ) do
-        local button = entry[ENTRY_BUTTON]
+    for _, entry in ipairs( playersParty ) do
+        local button = entry[VT_BUTTON]
         if button ~= nil then
           button:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
         end
@@ -138,10 +155,79 @@ function btn:updatePortraitButtons(iconFrame, partyMembersTable )
     return f
 end
 
--------------------  TEST 1 ----------------------------------
-local testFrame = nil
-SLASH_BUTTON_TEST1 = "/btn"
-SlashCmdList["BUTTON_TEST"] = function( num )
-  return
-end
+btn.threatIconFrame = nil 
+local threatIconFrame = btn.threatIconFrame
+
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")			-- arg1: boolean isInitialLogin, arg2: boolean isReloadingUI
+eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+eventFrame:RegisterEvent("GROUP_JOINED")
+eventFrame:RegisterEvent("GROUP_LEFT")
+eventFrame:RegisterEvent("PET_DISMISS_START")
+eventFrame:SetScript("OnEvent", 
+function( self, event, ... )
+	local arg1, arg2, arg3, arg4 = ...
+    local r = {STATUS_SUCCESS, nil, nil}
+
+    ------------------------------ PLAYER ENTERING WORLD -----------------
+    if event == "PLAYER_ENTERING_WORLD" then
+
+        local playersParty, r = grp:initPlayersParty()
+        if playersParty == nil or r[1] == STATUS_FAILURE then
+            local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
+            msg:post(s)
+            return
+        end     
+        threatIconFrame = btn:createIconFrame()
+        btn:updatePortraitButtons( threatIconFrame )
+        return
+    end
+--------------------------- GROUP ROSTER UPDATE ---------------------
+    if event == "GROUP_ROSTER_UPDATE" then
+        local playersParty, r = grp:initPlayersParty()
+        if playersParty == nil or r[1] == STATUS_FAILURE then
+            local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
+            msg:post(s)
+            return
+        end
+        threatIconFrame = btn:createIconFrame()
+        btn:updatePortraitButtons( threatIconFrame )
+        return
+    end
+    if event == "GROUP_JOINED" then
+      local playersParty, r = grp:initPlayersParty()
+      if playersParty == nil or r[1] == STATUS_FAILURE then
+          local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
+          msg:post(s)
+          return
+      end
+      threatIconFrame = btn:createIconFrame()
+      btn:updatePortraitButtons( threatIconFrame )
+    return
+    end
+
+    if event == "GROUP_LEFT" then
+      local playersParty, r = grp:initPlayersParty()
+      if playersParty == nil or r[1] == STATUS_FAILURE then
+          local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
+          msg:post(s)
+          return
+      end
+      threatIconFrame = btn:createIconFrame()
+      btn:updatePortraitButtons( threatIconFrame )
+    return
+    end
+
+    if event == "PET_DISMISS_START" then
+      local playersParty, r = grp:initPlayersParty()
+      if playersParty == nil or r[1] == STATUS_FAILURE then
+          local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
+          msg:post(s)
+          return
+      end
+      threatIconFrame = btn:createIconFrame()
+      btn:updatePortraitButtons( threatIconFrame )
+    return
+    end
+end)
 

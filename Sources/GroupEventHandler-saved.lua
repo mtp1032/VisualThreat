@@ -44,11 +44,7 @@ local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
-grp.playersParty = {}
-local playersParty = grp.playersParty
-
-local partypet = {"partypet1", "partypet2", "partypet3", "partypet4", "partypet5"}
-local party = {"party1", "party2", "party3", "party4", "party5"}
+playersParty = nil
 
 local function printPartyEntry( nvp )
     if nvp[VT_PET_OWNER] ~= nil then
@@ -62,20 +58,11 @@ local function printPartyEntry( nvp )
                                         nvp[VT_UNIT_ID] ))
     end
 end
-local function copyEntries( v, e)   -- *** Copies e into v ***
+local function copyEntries( v, e)
     v[VT_AGGRO_STATUS]          = e[VT_AGGRO_STATUS]
     v[VT_THREAT_VALUE]          = e[VT_THREAT_VALUE]
     v[VT_THREAT_VALUE_RATIO]    = e[VT_THREAT_VALUE_RATIO]
     v[VT_HEALING_TAKEN]         = e[VT_HEALING_TAKEN]
-end
-local function isMember( memberName )
-    local isMember = false
-    for _, v in ipairs( playersParty) do
-        if v[1] == memberName then
-            isMember = true
-        end
-    end
-    return isMember
 end
 local function createNewEntry( unitName, unitId, ownerName, mobId )
     local r = RESULT -- {STATUS_SUCCESS, nil, nil}
@@ -115,16 +102,6 @@ function grp:getUnitIdByName( memberName )
     end
     return nil
 end
-function grp:getOwnerByPetName( petName )
-    local petOwner = nil 
-    for _, v in ipairs( playersParty ) do
-        if v[VT_UNIT_NAME] == petName then
-            petOwner = v[VT_PET_OWNER]
-            break
-        end
-    end
-    return petOwner
-end
 function grp:updateDamageTaken( memberName, damage )
     local r = RESULT -- {STATUS_SUCCESS, nil, nil}
 
@@ -136,16 +113,6 @@ function grp:updateDamageTaken( memberName, damage )
         end
     end
 end
-function grp:getDamageTaken( memberName )
-    local damageTaken = 0
-    for _, v in ipairs( playersParty ) do
-        if v[VT_UNIT_NAME] == memberName then
-            damageTaken = v[VT_DAMAGE_TAKEN]
-            break
-        end
-    end
-    return damageTaken
-end
 function grp:updateHealingTaken( memberName, healing )
     for _, v in ipairs( playersParty ) do
         -- if the entry has already been inserted then just return
@@ -153,16 +120,6 @@ function grp:updateHealingTaken( memberName, healing )
             v[VT_HEALING_TAKEN] = V[VT_HEALING_TAKEN] + healing
         end
     end
-end
-function grp:getHealingTaken( memberName )
-    local healingTaken = 0
-    for _, v in ipairs( playersParty ) do
-        if v[VT_UNIT_NAME] == memberName then
-            healingTaken = v[VT_HEALING_TAKEN]
-            break
-        end
-    end
-    return healingTaken
 end
 function grp:setThreatValue( memberName, threatValue)
     for _, v in ipairs( playersParty ) do
@@ -174,79 +131,73 @@ function grp:setThreatValue( memberName, threatValue)
 
 end
 function grp:setThreatValueRatio( memberName, threatValueRatio )
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( playersParty) do
         if v[VT_UNIT_NAME] == memberName then
             v[VT_THREAT_VALUE_RATIO] = 0
             v[VT_THREAT_VALUE_RATIO] = threatValueRatio
         end
     end
 end
-function grp:getThreatValueRatio( memberName )
-    local threatValueRatio = 0
+function grp:insertEntryInPlayersParty( entry )
+    local r = RESULT -- {STATUS_SUCCESS, nil, nil}
+
     for _, v in ipairs( playersParty ) do
-        if v[VT_UNIT_NAME] == memberName then
-            threatValueRatio = v[VT_THREAT_VALUE_RATIO]
-            break
+        -- if the entry has already been inserted then just return
+        if  v[VT_UNIT_NAME] == entry[VT_UNIT_NAME] then
+            copyEntries( v, entry)
+            return r
         end
     end
-    return threatValueRation
-end
-function grp:getPlayersParty()
-    return grp.playersParty
+    return r
 end
 function grp:initPlayersParty()
-    local r = {STATUS_SUCCESS, nil, nil}
+    local r = RESULT -- {STATUS_SUCCESS, nil, nil}
 
     local blizzPartyNames = GetHomePartyInfo()
     if blizzPartyNames == nil then
-        -- fail silently
-        return "", r
+        return r
     end
 
-    playersParty = {}
-
+    local playersParty = {}
     -- The calling player is special and not included among the
-    -- names returned by GetHomePartyInfo(). We need to explicitly
-    -- add it.
+    -- names returned by GetHomePartyInfo()
     local player = UnitName("player")
     local newEntry, r = createNewEntry( player, "player" )
-    if r[1] ~= STATUS_SUCCESS then
-        local stackFrame = debugstack()
-        local playerName = UnitName("player")
-        local s = sprintf("Entry not created for %s.\n", player )
-        return E:setResult( s, stackFrame )   
-    end
     table.insert( playersParty, newEntry )
+    -- printPartyEntry( newEntry )
 
     -- if this player has a pet
     local pet = UnitName("pet")
     if pet ~= nil then
         local petEntry, r = createNewEntry( pet, "pet", player )
         table.insert( playersParty, petEntry )
+        -- printPartyEntry( petEntry )
     end
 
     local count = #blizzPartyNames
     for i = 1, count do
+        
         -- get a blizz party member's entry
-        local playerId = party[i]
+        local playerId = partyId[i]
         local playerName = UnitName( playerId )
-        if not isMember(playerName ) then
-            ------ CONGRUENCY CHECK REMOVE WHEN THOROUGHLY TESTED ------------
-            if playerName ~= blizzPartyNames[i] then
-                local stackFrame = debugstack()
-                local errStr = sprintf("Party and Bizzard Names Incongruent.\n")
-                return E:setResult( errStr, stackFrame )
-            end
+        local blizzPartyMember = blizzPartyNames[i]
 
-            local newEntry, r = createNewEntry( playerName, playerId )
-            table.insert( playersParty, newEntry )
+        -- congruency check
+        if playerName ~= blizzPartyMember then
+            E:where( "party names are incongruent.")
+            return
+        end
 
-            -- if this player owns a pet, enter it also.
-            local petName = UnitName( partypet[i] )
-            if petName ~= nil then 
-                local petEntry, r = createNewEntry( petName, partypet[i], playerName )
-                table.insert( playersParty, petEntry )
-            end
+        local newEntry, r = createNewEntry( playerName, playerId )
+        table.insert( playersParty, newEntry )
+        -- printPartyEntry( newEntry )
+
+        -- if this player owns a pet, enter it also.
+        local petName = UnitName( petId[i] )
+        if petName ~= nil then 
+            local petEntry, r = createNewEntry( petName, petId[i], playerName )
+            table.insert( playersParty, petEntry )
+            -- printPartyEntry( petEntry )
         end
     end
     return playersParty, r

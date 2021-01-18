@@ -6,6 +6,7 @@ local _, VisualThreat = ...
 VisualThreat.Core = {}
 core = VisualThreat.Core
 
+local E = errors
 local L = VisualThreat.L
 local sprintf = _G.string.format
 
@@ -20,12 +21,13 @@ local BUILD_DATE 		= 3		-- string
 local TOC_VERSION		= 4		-- number
 local ADDON_NAME 		= 5		-- string
 
-local infoTable = { GetBuildInfo() }			-- BLIZZ
-infoTable[ADDON_NAME] = L["ADDON_NAME"]
+local infoTable = {}
 
 --****************************************************************************************
 --                      Game/Build/AddOn Info (from Blizzard's GetBuildInfo())
 --****************************************************************************************
+local infoTable = { GetBuildInfo() }
+
 function core:getAddonName()
 	return infoTable[ADDON_NAME]
 end
@@ -41,3 +43,31 @@ end
 function core:getTocVersion()
     return infoTable[TOC_VERSION]	-- e.g., 90002
 end
+function core:printMsg( msg )
+	DEFAULT_CHAT_FRAME:AddMessage( msg, 1.0, 1.0, 0.0 )
+end
+
+framePositionSaved = false
+
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGOUT")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
+eventFrame:SetScript("OnEvent", function( self, event, arg1 )
+
+    if event == "ADDON_LOADED" and arg1 == "VisualThreat" then
+        DEFAULT_CHAT_FRAME:AddMessage(sprintf("[Core.lua:61]framePositionSaved %s", tostring( framePositionSaved)) )
+        -- The framePosition array has been loaded by this point
+        if framePositionSaved == false  then
+            framePosition = { "CENTER", nil, "CENTER", 0, 0 }
+            framePositionSaved = true
+        end
+        return        
+    end
+    if event == "PLAYER_LOGIN" and arg1 == "VisualThreat" then
+        return
+    end
+    if event == "PLAYER_LOGOUT" then
+    end
+    return
+end)

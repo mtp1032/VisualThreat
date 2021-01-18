@@ -282,8 +282,3 @@ function msg:post( message )
     msg:showFrame( msgFrame )
     msgFrame.Text:Insert( message )
 end
-
-
--------------------------------------------------------------------------
---                          UTILITY FUNCTIONS
--------------------------------------------------------------------------
