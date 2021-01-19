@@ -24,15 +24,16 @@ local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
 local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
 local VT_BUTTON                  = grp.VT_BUTTON
-local VT_NUM_ELEMENTS            = grp.VT_BUTTON
+local VT_NUM_ELEMENTS            = grp.VT_BUTTON 
 
 -- When the UNIT_THREAT_LIST_UPDATE fires, the handler calls updateThreatStatus 
-local function updateThreatStatus( mobId )
+function tev:updateThreatStatus( mobId )
 
     -- Sum the threat values as we loop through and update each party member's entry
     local sumThreatValue = 0
+    local unitId = nil
     for _, entry in ipairs( grp.playersParty ) do
-        local unitId = entry[VT_UNIT_ID]
+        unitId = entry[VT_UNIT_ID]
         local _, _, _, _, threatValue = UnitDetailedThreatSituation( unitId, mobId )
         grp:setThreatValue( entry[VT_UNIT_NAME], threatValue )
         sumThreatValue = sumThreatValue + threatValue
@@ -43,26 +44,5 @@ local function updateThreatStatus( mobId )
             local threatValueRatio = entry[VT_THREAT_VALUE]/sumThreatValue
             grp:setThreatValueRatio( entry[VT_UNIT_NAME], threatValueRatio )
         end
-    end
+    end  
 end
-
-local eventFrame = CreateFrame("Frame") 
-eventFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE") 		-- unitTarget
-eventFrame:RegisterEvent("UNIT_THREAT_LIST_UPDATE")				-- unitTarget
-eventFrame:SetScript("OnEvent", 
-function( self, event, ... )
-	local arg1, arg2, arg3, arg4 = ...
-    -- Fired when a player on the mob's threat list moves past another unit
-    -- on that list
-    if event == "UNIT_THREAT_SITUATION_UPDATE" then
-        btn:updatePortraitButtons()
-    end
-    if event == "UNIT_THREAT_LIST_UPDATE" then
-        if grp.playersParty == nil then
-            return
-        end
-        updateThreatStatus( arg1 )
-        btn:updatePortraitButtons()
-	end
-end)
-

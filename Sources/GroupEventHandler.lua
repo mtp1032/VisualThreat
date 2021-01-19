@@ -69,15 +69,6 @@ local function copyEntries( v, e)   -- *** Copies e into v ***
     v[VT_HEALING_RECEIVED]      = e[VT_HEALING_RECEIVED]
     v[VT_BUTTON]                = e[VT_BUTTON]
 end
-local function isMember( memberName )
-    local isMember = false
-    for _, v in ipairs( playersParty) do
-        if v[1] == memberName then
-            isMember = true
-        end
-    end
-    return isMember
-end
 local function createNewEntry( unitName, unitId, ownerName, mobId )
     local r = RESULT -- {STATUS_SUCCESS, nil, nil}
 
@@ -108,6 +99,15 @@ local function createNewEntry( unitName, unitId, ownerName, mobId )
     -- printPartyEntry( newEntry )
 	return newEntry, r
 end 
+function grp:isPartyMember( memberName )
+    local isAMember = false
+    for _, v in ipairs( playersParty) do
+        if v[1] == memberName then
+            isAMember = true
+        end
+    end
+    return isAMember
+end
 function grp:getUnitIdByName( memberName )
     for _, npv in ipairs( playersParty ) do
         if npv[1] == memberName then
@@ -130,12 +130,12 @@ function grp:updateDamageTaken( memberName, damage )
     local r = RESULT -- {STATUS_SUCCESS, nil, nil}
 
     for _, v in ipairs( playersParty ) do
-        -- if the entry has already been inserted then just return
-        if v[VT_UNIT_NAME] == memberName then
+        if v[VT_UNIT_NAME] == memberName then -- accumulate the damage
             v[VT_DAMAGE_TAKEN] = v[VT_DAMAGE_TAKEN] + damage
             return r
         end
     end
+    return r
 end
 function grp:getDamageTaken( memberName )
     local damageTaken = 0
@@ -177,7 +177,6 @@ end
 function grp:setThreatValueRatio( memberName, threatValueRatio )
     for _, v in ipairs( playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_THREAT_VALUE_RATIO] = 0
             v[VT_THREAT_VALUE_RATIO] = threatValueRatio
         end
     end
@@ -197,10 +196,9 @@ function grp:getPlayersParty()
 end
 function grp:initPlayersParty()
     local r = {STATUS_SUCCESS, nil, nil}
-
+    
     local blizzPartyNames = GetHomePartyInfo()
     if blizzPartyNames == nil then
-        -- fail silently
         return "", r
     end
 
@@ -231,7 +229,7 @@ function grp:initPlayersParty()
         -- get a blizz party member's entry
         local playerId = party[i]
         local playerName = UnitName( playerId )
-        if not isMember(playerName ) then
+        if not grp:isPartyMember(playerName ) then
             ------ CONGRUENCY CHECK REMOVE WHEN THOROUGHLY TESTED ------------
             if playerName ~= blizzPartyNames[i] then
                 local stackFrame = debugstack()
@@ -251,4 +249,6 @@ function grp:initPlayersParty()
         end
     end
     return playersParty, r
+end
+function grp:eventHandler( event )
 end

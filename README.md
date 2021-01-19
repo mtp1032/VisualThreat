@@ -2,7 +2,7 @@
 
 VERSION: Alpha V 1.0
 
-Visual Threat is a World of Warcraft Addon that presents a VERY simple visual display of the threat (a.k.a aggro) on each party member. For example, if you are in a party with 5 members, the threat display will be a vertical stack of party member icons. While in combat, the icons will be ordered by threat, from highest to lowest. The member with the highest threat will, hopefully, be the tank. The icons are ordered from highest (top or first icon) to lowest (bottom or last icon). Over the course of an encounter threat levels will change (e.g., the tank loses aggro). When the change is such as the icons need to reordered the addon will shuffle the icons so that the highest to lowest ordering is maintained.
+Visual Threat is a World of Warcraft Addon that presents a VERY simple visual display of the threat (a.k.a aggro) on each party member. For example, if you are in a party with 5 members, the threat display will be a vertical stack of party member portraits. The icons are ordered from high to low according to threat. The member with the highest threat will, hopefully, be the tank. Over the course of an encounter threat levels will change (e.g., the tank loses aggro). When the change is such as the icons need to reordered the addon will be shuffled.
 
 The stack also includes an icon for each pet in the party. So, in a party of 5 with a warlock and a hunter, each with a pet summoned, the threat stack will be composed of 7 icons.
 

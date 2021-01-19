@@ -48,32 +48,3 @@ function core:printMsg( msg )
 end
 
 framePositionSaved = false
-
-core.foo = nil
-local foo = core.foo
-
-function core:printFoo()
-    core:printMsg( foo )
-end
-
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
-eventFrame:RegisterEvent("PLAYER_LOGOUT")
-eventFrame:RegisterEvent("PLAYER_LOGIN")
-eventFrame:SetScript("OnEvent", function( self, event, arg1 )
-
-    if event == "ADDON_LOADED" and arg1 == "VisualThreat" then
-        -- The framePosition array has been loaded by this point
-        if framePositionSaved == false  then
-            framePosition = { "CENTER", nil, "CENTER", 0, 0 }
-            framePositionSaved = true
-        end
-        return        
-    end
-    if event == "PLAYER_LOGIN" and arg1 == "VisualThreat" then
-        return
-    end
-    if event == "PLAYER_LOGOUT" then
-    end
-    return
-end)
