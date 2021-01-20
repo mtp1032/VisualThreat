@@ -162,3 +162,14 @@ end
 
 return
  end
+--[[  /run print("this is \124cFFFF0000red and \124cFF00FF00this is green\124r back to white")
+ > this is red and this is green back to white
+ ]] 
+
+ local red = "\124cFFFF0000"
+ local green = "\124cFF00FF00"
+ SLASH_COLOR_TESTS1 = "/color"
+ SlashCmdList["COLOR_TESTS"] = function( arg )
+    print( red.."red"..", "..green.."green")
+
+ end

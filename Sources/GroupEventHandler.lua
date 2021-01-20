@@ -45,7 +45,6 @@ local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 grp.playersParty = {}
-local playersParty = grp.playersParty
 
 local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
 local party     = {"party1",    "party2",    "party3",    "party4" }
@@ -101,7 +100,7 @@ local function createNewEntry( unitName, unitId, ownerName, mobId )
 end 
 function grp:isPartyMember( memberName )
     local isAMember = false
-    for _, v in ipairs( playersParty) do
+    for _, v in ipairs( grp.playersParty) do
         if v[1] == memberName then
             isAMember = true
         end
@@ -118,7 +117,7 @@ function grp:getUnitIdByName( memberName )
 end
 function grp:getOwnerByPetName( petName )
     local petOwner = nil 
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == petName then
             petOwner = v[VT_PET_OWNER]
             break
@@ -128,18 +127,19 @@ function grp:getOwnerByPetName( petName )
 end
 function grp:updateDamageTaken( memberName, damage )
     local r = RESULT -- {STATUS_SUCCESS, nil, nil}
+    local damageTaken = 0
 
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then -- accumulate the damage
             v[VT_DAMAGE_TAKEN] = v[VT_DAMAGE_TAKEN] + damage
-            return r
+            damageTaken = v[VT_DAMAGE_TAKEN]
         end
     end
-    return r
+    return damageTaken
 end
 function grp:getDamageTaken( memberName )
     local damageTaken = 0
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
             damageTaken = v[VT_DAMAGE_TAKEN]
             break
@@ -148,16 +148,16 @@ function grp:getDamageTaken( memberName )
     return damageTaken
 end
 function grp:updateHealingReceived( memberName, healing )
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         -- if the entry has already been inserted then just return
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_HEALING_RECEIVED] = V[VT_HEALING_RECEIVED] + healing
+            v[VT_HEALING_RECEIVED] = v[VT_HEALING_RECEIVED] + healing
         end
     end
 end
 function grp:getHealingReceived( memberName )
     local HealingReceived = 0
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
             HealingReceived = v[VT_HEALING_RECEIVED]
             break
@@ -166,7 +166,7 @@ function grp:getHealingReceived( memberName )
     return HealingReceived
 end
 function grp:setThreatValue( memberName, threatValue)
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
             v[VT_THREAT_VALUE] = 0
             v[VT_THREAT_VALUE] = threatValue
@@ -175,7 +175,7 @@ function grp:setThreatValue( memberName, threatValue)
 
 end
 function grp:setThreatValueRatio( memberName, threatValueRatio )
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
             v[VT_THREAT_VALUE_RATIO] = threatValueRatio
         end
@@ -183,7 +183,7 @@ function grp:setThreatValueRatio( memberName, threatValueRatio )
 end
 function grp:getThreatValueRatio( memberName )
     local threatValueRatio = 0
-    for _, v in ipairs( playersParty ) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
             threatValueRatio = v[VT_THREAT_VALUE_RATIO]
             break
@@ -202,8 +202,6 @@ function grp:initPlayersParty()
         return "", r
     end
 
-    playersParty = {}
-
     -- The calling player is special and not included among the
     -- names returned by GetHomePartyInfo(). We need to explicitly
     -- add it.
@@ -215,13 +213,13 @@ function grp:initPlayersParty()
         local s = sprintf("Entry not created for %s.\n", player )
         return E:setResult( s, stackFrame )   
     end
-    table.insert( playersParty, newEntry )
+    table.insert( grp.playersParty, newEntry )
 
     -- if this player has a pet
     local pet = UnitName("pet")
     if pet ~= nil then
         local petEntry, r = createNewEntry( pet, "pet", player )
-        table.insert( playersParty, petEntry )
+        table.insert( grp.playersParty, petEntry )
     end
 
     local count = #blizzPartyNames
@@ -238,17 +236,17 @@ function grp:initPlayersParty()
             end
 
             local newEntry, r = createNewEntry( playerName, playerId )
-            table.insert( playersParty, newEntry )
+            table.insert( grp.playersParty, newEntry )
 
             -- if this player owns a pet, enter it also.
             local petName = UnitName( partypet[i] )
             if petName ~= nil then 
                 local petEntry, r = createNewEntry( petName, partypet[i], playerName )
-                table.insert( playersParty, petEntry )
+                table.insert( grp.playersParty, petEntry )
             end
         end
     end
-    return playersParty, r
+    return grp.playersParty, r
 end
 function grp:eventHandler( event )
 end

@@ -28,21 +28,32 @@ local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 -- When the UNIT_THREAT_LIST_UPDATE fires, the handler calls updateThreatStatus 
 function tev:updateThreatStatus( mobId )
-
+    if mobId == "player" then
+        return
+    end
     -- Sum the threat values as we loop through and update each party member's entry
     local sumThreatValue = 0
-    local unitId = nil
     for _, entry in ipairs( grp.playersParty ) do
-        unitId = entry[VT_UNIT_ID]
-        local _, _, _, _, threatValue = UnitDetailedThreatSituation( unitId, mobId )
-        grp:setThreatValue( entry[VT_UNIT_NAME], threatValue )
-        sumThreatValue = sumThreatValue + threatValue
-    end
+        local _, _, _, _, threatValue = UnitDetailedThreatSituation( entry[VT_UNIT_ID], mobId )
+        if threatValue == nil then 
+            -- E:where("threatValue nil for "..entry[VT_UNIT_NAME])
+            threatValue = 0 
+        else
+            -- E:where( "threatValue  "..tostring(threatValue ).." for "..entry[VT_UNIT_NAME] )
+        end
 
+        if threatValue > 0 then
+            grp:setThreatValue( entry[VT_UNIT_NAME], threatValue )
+            sumThreatValue = sumThreatValue + threatValue
+        end
+    end
+-- E:where()
     if sumThreatValue > 0 then
         for _, entry in ipairs( grp.playersParty ) do
             local threatValueRatio = entry[VT_THREAT_VALUE]/sumThreatValue
             grp:setThreatValueRatio( entry[VT_UNIT_NAME], threatValueRatio )
         end
     end  
+    -- E:where()
+    btn:updatePortraitButtons()
 end

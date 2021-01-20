@@ -15,8 +15,8 @@ local L = VisualThreat.L
 local E = errors 
 local sprintf = _G.string.format 
 
-local BUTTON_WIDTH = 200
-local BUTTON_HEIGHT = 50
+local BUTTON_WIDTH = 230
+local BUTTON_HEIGHT = 80
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
@@ -54,45 +54,33 @@ local function createEmptyButton(parent)
   buttonFrame.Threat:SetPoint("BOTTOMRIGHT",-4,4)
   buttonFrame.Threat:SetJustifyH("LEFT")
 
-  -- buttonFrame.Damage = buttonFrame:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-  -- buttonFrame.Damage:SetPoint("TOPLEFT",buttonFrame.Portrait,"RIGHT",4,4)
-  -- buttonFrame.Damage:SetPoint("BOTTOMRIGHT",-4,4)
-  -- buttonFrame.Damage:SetJustifyH("LEFT")
+  buttonFrame.Damage = buttonFrame:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+  buttonFrame.Damage:SetPoint("TOPLEFT",buttonFrame.Portrait,"RIGHT",4,35)
+  buttonFrame.Damage:SetPoint("BOTTOMRIGHT",-4,4)
+  buttonFrame.Damage:SetJustifyH("LEFT")
 
   return buttonFrame 
 end
+
+local red = "\124cFFFF0000"
+
 local function updateButton( entry, button )
     local unitId        = entry[VT_UNIT_ID]
     local playerName    = entry[VT_UNIT_NAME]
-    local threat        = entry[VT_THREAT_VALUE_RATIO]*100
+    local threatRatio   = entry[VT_THREAT_VALUE_RATIO]*100
     local damageTaken   = entry[VT_DAMAGE_TAKEN]
     local HealingReceived  = entry[VT_HEALING_RECEIVED]
 
     SetPortraitTexture( button.Portrait, unitId )
     button.Name:SetText( playerName )
     
-    -- local status = UnitThreatSituation( entry[VT_UNIT_ID], targetId )
-    -- if status > 0 then
-    --   if status == 1 then
-    --     -- r = 255 g = 255 b = 255
-    --     r = 1.0 g = 1.0 b = 1.0 
-    --  elseif status == 2 then
-    --     --r = 0 g = 255 b = 0
-    --     r = 0.0 g = 1.0 b = 0.0
-    --   elseif status == 3 then
-    --     -- r = 255 g = 255 b = 0
-    --     r = 1.0 g = 1.0 b = 0.0
-    --   elseif status == 4 then
-    --     -- r = 255 g = 0 b = 0
-    --     r = 1.0 g = 0.0 b = 0.0
-    --   end
-    -- end
+    local damageTaken = grp:getDamageTaken( playerName )
+    -- E:where( damageTaken )
+    local dmgStr = sprintf("Damage taken %d", damageTaken)
+    button.Damage:SetText( dmgStr )
 
-    local str = sprintf( "Threat %d%%", threat)
+    local str = sprintf( "Threat: "..red.." %d%%", threatRatio)
     button.Threat:SetText( str )
-    -- local dmg = sprintf("Damage taken %d", damageTake)
-    -- button.Damage:SetText( dmg )
-    --E:where( sprintf("%s took %d damage and has %d%% threat\n", playerName, damageTaken, threat ))
 end
 
 function btn:createIconFrame()
@@ -154,7 +142,7 @@ function btn:createIconFrame()
           end
 
           -- local r, g, b = GetThreatStatusColor(status)
-          local dmgTxt = sprintf("Damage taken by %s: %d", playerName, dmg)
+          local dmgTxt = sprintf("Cumulative damage taken by %s: %d", playerName, dmg)
           DEFAULT_CHAT_FRAME:AddMessage( dmgTxt, r, g, b )
         end
       end)
@@ -170,6 +158,8 @@ function btn:updatePortraitButtons()
       local button = entry[VT_BUTTON]
       if button ~= nil then
           updateButton( entry, button )
+      else
+        -- E:where( "button = nil")
       end
     end
 
@@ -189,3 +179,20 @@ function btn:updatePortraitButtons()
 end
 
 btn.threatIconFrame = nil 
+
+    -- local status = UnitThreatSituation( entry[VT_UNIT_ID], targetId )
+    -- if status > 0 then
+    --   if status == 1 then
+    --     -- r = 255 g = 255 b = 255
+    --     r = 1.0 g = 1.0 b = 1.0 
+    --  elseif status == 2 then
+    --     --r = 0 g = 255 b = 0
+    --     r = 0.0 g = 1.0 b = 0.0
+    --   elseif status == 3 then
+    --     -- r = 255 g = 255 b = 0
+    --     r = 1.0 g = 1.0 b = 0.0
+    --   elseif status == 4 then
+    --     -- r = 255 g = 0 b = 0
+    --     r = 1.0 g = 0.0 b = 0.0
+    --   end
+    -- end

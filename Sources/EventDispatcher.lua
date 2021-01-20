@@ -20,6 +20,7 @@ local STATUS_FAILURE 	= errors.STATUS_FAILURE
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
+
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")			-- arg1: boolean isInitialLogin, arg2: boolean isReloadingUI
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
@@ -46,7 +47,8 @@ function( self, event, ... )
     end   
     ------------------------------ COMBAT LOG EVENT UNFILTERED -----------
     if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-
+        if UnitPlayerOrPetInParty( "player" ) == false then return end
+        
         local stats = {CombatLogGetCurrentEventInfo()}
 
         if not grp:isPartyMember( stats[9] ) then
@@ -59,13 +61,13 @@ function( self, event, ... )
     end
     ------------------------------ PLAYER ENTERING WORLD -----------------
     if event == "PLAYER_ENTERING_WORLD" then
+        if UnitPlayerOrPetInParty( "player" ) == false then E:where() return end
 
         grp.playersParty, r = grp:initPlayersParty()
         if grp.playersParty == "" then
             grp.playersParty = nil
             return
         end
-
         if btn.threatIconFrame == nil then
             btn.threatIconFrame = btn:createIconFrame()
         end
@@ -82,6 +84,7 @@ function( self, event, ... )
     end
     --------------------------- GROUP ROSTER UPDATE ---------------------
     if event == "GROUP_ROSTER_UPDATE" then
+        if UnitPlayerOrPetInParty( "player" ) == false then return end
 
         grp.playersParty, r = grp:initPlayersParty()
         if grp.playersParty == "" then
@@ -94,6 +97,8 @@ function( self, event, ... )
     end
     --------------------------- GROUP JOINED ---------------------
     if event == "GROUP_JOINED" then
+        if UnitPlayerOrPetInParty( "player" ) == false then return end
+
         grp.playersParty, r = grp:initPlayersParty()
         if grp.playersParty == "" then
             grp.playersParty = nil
@@ -104,6 +109,7 @@ function( self, event, ... )
     end
     --------------------------- GROUP LEFT ---------------------
     if event == "GROUP_LEFT" then
+        if UnitPlayerOrPetInParty( "player" ) == false then return end
         grp.playersParty, r = grp:initPlayersParty()
         if grp.playersParty == "" then
             grp.playersParty = nil
@@ -117,6 +123,7 @@ function( self, event, ... )
     end
     --------------------------- PET DISMISS START ---------------------
     if event == "PET_DISMISS_START" then
+        if UnitPlayerOrPetInParty( "player" ) == false then E:where() return end
         grp.playersParty, r = grp:initPlayersParty()
         if grp.playersParty == "" then
             grp.playersParty = nil
@@ -130,13 +137,12 @@ function( self, event, ... )
     end
     ---------------------- UNIT THREAT SITUATION UPDATE ---------------
     if event == "UNIT_THREAT_SITUATION_UPDATE" then
-        tev:updateThreatStatus( arg1 )
-        btn:updatePortraitButtons()
+        -- tev:updateThreatStatus( arg1 )
     end
     ---------------------- UNIT THREAT LIST UPDATE ---------------
     if event == "UNIT_THREAT_LIST_UPDATE" then
+        if UnitPlayerOrPetInParty( "player" ) == false then E:where() return end
         tev:updateThreatStatus( arg1 )
-        btn:updatePortraitButtons()
 	end
 end)
 

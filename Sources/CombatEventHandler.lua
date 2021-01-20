@@ -49,11 +49,12 @@ function ceh:handleEvent( stats )
         else
             amountDamaged = stats[15]
         end
+        -- E:where( targetName..", damageTaken: "..amountDamaged )
         grp:updateDamageTaken( targetName, amountDamaged )
     end
     ------------- HEALING RECEIVED --------------------
     if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
-        grp:updateHealingReceived( targetName, stats[AMOUNT_HEALED] )
+        grp:updateHealingReceived( targetName, stats[15] )
     end
     ------------- PET SUMMONED --------------------
     if  subEvent == "SPELL_SUMMON" then
