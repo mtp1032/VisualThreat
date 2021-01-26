@@ -68,12 +68,12 @@ local function createNewEntry( unitName, unitId, ownerName, mobId )
 
     if unitName == nil then
         local st = debugstack(2)
-        local str = sprintf("INVALID_ARG: unitName not specified.\n" )
+        local str = sprintf("%s: %s", L["ARG_NIL"], "unitName" )
         return nil, E:setResult( str, st )
     end
     if unitId == nil then
         local st = debugstack(2)
-        local str = sprintf("unitId not specified.\n")
+        local str = sprintf("%s: %s", "unitId", L["ARG_NIL"] )
         return nil, E:setResult( str, st )
     end
 
@@ -116,6 +116,18 @@ function grp:inBlizzParty( memberName )
         end
     end
     return isBlizzMember
+end
+function grp:blizzPartyExists()
+    local partyExists = false
+    local count = 0
+
+    -- if no party exists then return false
+    local blizzNames = GetHomePartyInfo()
+    if blizzNames ~= nil then
+        partyExists = true
+        count = #blizzNames
+    end
+    return partyExists, count
 end
 -- returns the count of the number of members in the blizz party
 -- includes the "player".
@@ -258,7 +270,7 @@ function grp:getOwnerByPetName( petName )
     return petOwner
 end
 function grp:updateDamageTaken( memberName, damage )
-    local r = RESULT -- {STATUS_SUCCESS, nil, nil}
+    local r = {STATUS_SUCCESS, nil, nil}
     local damageTaken = 0
 
     for _, v in ipairs( grp.playersParty ) do
@@ -398,13 +410,12 @@ function grp:congruencyCheck()
     -- TEST 1: numbers match
     if blizzPartyCount  ~= partyCount then 
         local st = debugstack(2)
-        local str = sprintf("Party counts are unequal.\n")
+        local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
         return false, E:setResult( str, st )
     end
     if blizzPetCount ~= petCount then 
         local st = debugstack(2)
-        local str = sprintf("Pet counts are unequal.\n")
-        E:where()
+        local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
         return false, E:setResult( str, st )
     end
 
@@ -414,8 +425,7 @@ function grp:congruencyCheck()
     for i = 1, blizzPartyCount do
         if partyNames[i] ~= blizzNames[i] then
             local st = debugstack(2)
-            local str = sprintf("Party names are unequal or inconsistent.\n")
-            E:where()
+            local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
             return false, E:setResult( str, st )
         end
     end
