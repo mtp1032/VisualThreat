@@ -33,19 +33,20 @@ local initPlayersParty = grp.initPlayersParty
 local function testOne( s )
     local result = {STATUS_SUCCESS, nil, nil }
     if s == nil then
-        result = E:setResult(L["ARG_NIL"], debugstack() )
+        local st = debugstack(2)
+        result = E:setResult(L["ARG_NIL"], st )
     end
     return result
 end 
  ------------ GROUP EVENT HANDLER TESTS -----------------
 local function printEntryName( nvp )
     if nvp[VT_PET_OWNER] ~= nil then
-        msg:post( sprintf("Unit Name = %s, UnitId = %s, Owner's Name = %s\n", 
+        msg:postMsg( sprintf("Unit Name = %s, UnitId = %s, Owner's Name = %s\n", 
                                         nvp[VT_UNIT_NAME], 
                                         nvp[VT_UNIT_ID], 
                                         nvp[VT_PET_OWNER]))
     else
-        msg:post( sprintf("Unit Name = %s, unitId = %s\n",  
+        msg:postMsg( sprintf("Unit Name = %s, unitId = %s\n",  
                                         nvp[VT_UNIT_NAME], 
                                         nvp[VT_UNIT_ID] ))
     end
@@ -60,18 +61,18 @@ SlashCmdList["GROUP_TESTS"] = function( num )
     ----------- INITIALIZATION TESTS -----------------
     r = grp:initPlayersParty()
     if r[1] == STATUS_FAILURE then
-        msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+        msg:postResult( r )
         return
     end 
 
     ------- CONGRUENCY TESTS ---------
     local succeeded, r = grp:congruencyCheck()
     if not succeeded then
-        msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+        msg:postMsg( sprintf("%s\n%s\n", r[2], r[3]))
         return
     end
 
-    msg:post("*** PASSED CONGRUENCY TESTS ***")
+    msg:postMsg("*** PASSED CONGRUENCY TESTS ***")
     return
 end
 
@@ -79,7 +80,7 @@ end
  SLASH_CORE_TESTS1 = "/core1"
  SlashCmdList["CORE_TESTS"] = function( num )
     local addonName = core:getAddonName()               -- string
-    core:printMsg( L["ADDON_AND_VERSION"] )
+    core:printMsg( L["ADDON_LOADED_MESSAGE"] )
 
     local releaseVersion = core:getReleaseVersion()     -- string
     local buildNumber = core:getBuildNumber()           -- string
@@ -107,26 +108,8 @@ SlashCmdList["ERROR_TESTS"] = function( num )
     if r[1] ~= STATUS_SUCCESS then
         E:postResult( r )
     else
-        core:printMsg( "testOne successful" )
+        core:printChatMsg( "testOne successful" )
     end
-end
-
--------------- COMBAT EVENT HANDLER TESTS -----------------
-local VT_UNIT_NAME               = grp.VT_UNIT_NAME
-local VT_UNIT_ID                 = grp.VT_UNIT_ID   
-local VT_PET_OWNER               = grp.VT_PET_OWNER 
-local VT_MOB_ID                  = grp.VT_MOB_ID                  
-local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS              
-local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
-local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
-local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_RECEIVED           = grp.VT_HEALING_RECEIVED
-local VT_BUTTON                  = grp.VT_BUTTON
-local VT_NUM_ELEMENTS            = grp.VT_BUTTON 
-
-SLASH_COMBAT_TESTS1 = "/ch1"
-SlashCmdList["COMBAT_TESTS"] = function( num )
-
 end
 ---------------------- BUTTON AND FRAME TESTS -----------------------
 
@@ -148,16 +131,19 @@ local function createFrame()
     return frame
 end
 
+local function bottom()
+    local st = debugstack(2)
+    local str = sprintf("%s: %s", L["ARG_NIL"], "unitName" )
+    return E:setResult( str, st )
+end
+local function top()
+    local result = bottom()
+    return result
+end
 SLASH_FRAME_TESTS1 = "/frame"
 SlashCmdList["FRAME_TESTS"] = function( num )
-    local f = {}
-
-    for i = 1, 5 do
-        f[i] = createFrame()
-    end
-    f[3]:Hide()
-
-
+    local result = top()
+    msg:postResult( result )
 end
 
 SLASH_BUTTON_TESTS1 = "/btn"
