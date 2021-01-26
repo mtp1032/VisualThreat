@@ -3,11 +3,11 @@
 -- AUTHOR: Michael Peterson
 -- ORIGINAL DATE: 27 August, 2020
 --------------------------------------------------------------------------------------
-local _, CAAReport = ...
-CAAReport.MsgFrames = {}
-msg = CAAReport.MsgFrames
+local _, VisualThreat = ...
+VisualThreat.MsgFrames = {}
+msg = VisualThreat.MsgFrames
 local sprintf = _G.string.format
-local L = CAAReport.L
+local L = VisualThreat.L
 local E = errors
 
 -- https://us.forums.blizzard.com/en/wow/t/addons-now-usable-in-shadowlands-beta/586355/16
@@ -107,7 +107,7 @@ local function createReloadButton( f, placement, offX, offY )
     reloadButton:SetPoint(placement, f, offX, offY)
     reloadButton:SetHeight(25)
     reloadButton:SetWidth(70)
-    reloadButton:SetText(L["RELOAD_BUTTON_TEXT"])
+    reloadButton:SetText(L["Reload"])
     reloadButton:SetScript("OnClick", 
         function(self)
             ReloadUI()
@@ -195,8 +195,11 @@ end
 --                   THESE ARE THE APPLICATION FRAMES
 --------------------------------------------------------------------------
 -- --  Create the frame where error messages are posted
+local errorFrameWidth = 600
+local errorFrameHight = 200
+
 function msg:createErrorMsgFrame(title)
-    local f = createTopFrame( "ErrorMsgFrame",600, 200, 0, 0 )
+    local f = createTopFrame( "ErrorMsgFrame",errorFrameWidth, errorFrameHight, 0, 0 )
     f:SetPoint("CENTER", 0, 200)
     f:SetFrameStrata("BACKGROUND")
     f:EnableMouse(true)
@@ -208,14 +211,14 @@ function msg:createErrorMsgFrame(title)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
 
     f.title = f:CreateFontString(nil, "OVERLAY")
-	f.title:SetFontObject("GameFontHighlight")
+    f.title:SetFontObject("GameFontHighlightLarge")
     f.title:SetPoint("CENTER", f.TitleBg, "CENTER", 5, 0)
-	f.title:SetText( title)
-	
+    f.title:SetText( title)
+    
     createResizeButton(f)
     createTextDisplay(f)
     createReloadButton(f, "BOTTOMLEFT",f, 5, 5)
-    createSelectButton(f, "BOTTOMRIGHT",f, -10, 5)
+    createSelectButton(f, "BOTTOMRIGHT",f, 5, -10)
     createClearButton(f, "BOTTOM",f, 5, 5)
     return f
 end
@@ -274,10 +277,19 @@ function msg:clearFrameText(f)
 	f.Text:ClearFocus()
 end
 
-local frameTitle = L["USER_MSG_FRAME"]
-local msgFrame = msg:createMsgFrame( frameTitle)
-
-function msg:post( message )
-    msg:showFrame( msgFrame )
-    msgFrame.Text:Insert( message )
+local errorFrame = nil
+function msg:postResult( result )
+    if errorFrame == nil then
+        errorFrame = msg:createErrorMsgFrame("Errors: Visual Threat")
+    end
+    errorFrame:Show()
+    errorFrame.Text:Insert( result[2] )
 end
+
+-- local frameTitle = L["USER_MSG_FRAME"]
+-- local msgFrame = msg:createMsgFrame( frameTitle)
+
+-- function msg:postMsg( message )
+--     msg:showFrame( msgFrame )
+--     msgFrame.Text:Insert( message )
+-- end
