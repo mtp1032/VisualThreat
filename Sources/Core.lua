@@ -16,10 +16,10 @@ local sprintf = _G.string.format
 
 --                      Indices into the infoTable table
 local INTERFACE_VERSION = 1	-- string
-local BUILD_NUMBER 		= 2		-- string
-local BUILD_DATE 		= 3		-- string
-local TOC_VERSION		= 4		-- number
-local ADDON_NAME 		= 5		-- string
+local BUILD_NUMBER 		= 2	-- string
+local BUILD_DATE 		= 3	-- string
+local TOC_VERSION		= 4	-- number
+local ADDON_NAME 		= 5	-- string
 
 local infoTable = {}
 
@@ -43,7 +43,7 @@ end
 function core:getTocVersion()
     return infoTable[TOC_VERSION]	-- e.g., 90002
 end
-function core:printMsg( msg )
+function core:printChatMsg( msg )
 	DEFAULT_CHAT_FRAME:AddMessage( msg, 1.0, 1.0, 0.0 )
 end
 
