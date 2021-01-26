@@ -99,8 +99,8 @@ function errors:check(result, msg )
 	end
 	return successful, result
 end
-
 function errors:setResult( errMsg, stackTrace )
+	errMsg = sprintf("FAILED: %s", errMsg )
 	local result = {STATUS_FAILURE, errMsg, stackTrace}
 	return result
 end

@@ -22,8 +22,9 @@ local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_RECEIVED           = grp.VT_HEALING_RECEIVED
-local VT_BUTTON                  = grp.VT_BUTTON
+local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
+local VT_PLAYER_FRAME            = grp.VT_PLAYER_FRAME
+local VT_BUTTON                  = grp.VT_BUTTON 
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 local playersParty = grp.playersParty
@@ -50,37 +51,27 @@ local function printEntryName( nvp )
     end
 end
 
+-- create a blizz party then execute these tests
 SLASH_GROUP_TESTS1 = "/grp"
 SlashCmdList["GROUP_TESTS"] = function( num )
     ------ TEST INITIALIZATION -----------
-    playersParty, r = initPlayersParty()
-    if playersParty == nil or r[1] == STATUS_FAILURE then
-        local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
-        msg:post(s)
+    local r = {STATUS_SUCCESS, nil, nil}
+
+    ----------- INITIALIZATION TESTS -----------------
+    r = grp:initPlayersParty()
+    if r[1] == STATUS_FAILURE then
+        msg:post( sprintf("%s\n%s\n", r[2], r[3]))
         return
-    end
-    for _, v in ipairs( playersParty ) do
-        printEntryName(v)
-    end
+    end 
 
-    msg:post( sprintf("\n\n"))
-
-    ------- TEST UNITID FROM NAME ---------
-    playersParty = {}
-    playersParty, r = initPlayersParty()
-    if playersParty == nil or r[1] == STATUS_FAILURE then
-        local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
-        msg:post(s)
+    ------- CONGRUENCY TESTS ---------
+    local succeeded, r = grp:congruencyCheck()
+    if not succeeded then
+        msg:post( sprintf("%s\n%s\n", r[2], r[3]))
         return
     end
 
-    for _, v in ipairs( playersParty ) do
-        local partyName = v[VT_UNIT_NAME]
-        local unitId = grp:getUnitIdByName( partyName )
-        local s = sprintf("%s : %s\n", partyName, unitId )
-        msg:post(s)
-    end
-    -----TEST GET OWNER ---------
+    msg:post("*** PASSED CONGRUENCY TESTS ***")
     return
 end
 
@@ -133,34 +124,46 @@ local VT_HEALING_RECEIVED           = grp.VT_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON 
 
-local entries = {}
-entries[1] = {"MIKE",         "player", nil, 4 }
-entries[2] = {"BOB",          "party1", nil, 4 }
-entries[3] = {"STEVE",        "party2", nil, 4 }
-entries[4] = {"ANN",          "party3", nil, 4 }
-entries[5] = {"JILL",         "party4", nil, 4 }
-entries[6] = {"PET OF MIKE",   "partypet1", "MIKE", 4 }
-entries[7] = {"PET OF JILL",   "partypet2", "JILL", 4 }
-
 SLASH_COMBAT_TESTS1 = "/ch1"
 SlashCmdList["COMBAT_TESTS"] = function( num )
 
 end
----------------------- BUTTON TESTS -----------------------
+---------------------- BUTTON AND FRAME TESTS -----------------------
 
- SLASH_BUTTON_TESTS1 = "/btn"
- SlashCmdList["BUTTON_TESTS"] = function( num )
+-- CREATE A DRAGABLE FRAME
+local function createFrame()
+    local frame = CreateFrame("Frame", "DragFrame2", UIParent)
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 
-    local playersParty, r = grp:initPlayersParty()
-    if playersParty == nil or r[1] == STATUS_FAILURE then
-        local s = sprintf("[FAILED: initPlayerParty()] %s\n%s\n\n",r[2], r[3])
-        msg:post(s)
-        return
+    -- The code below makes the frame visible, and is not necessary to enable dragging.
+    frame:SetPoint("CENTER")
+    frame:SetSize(64, 64)
+    local tex = frame:CreateTexture("ARTWORK")
+    tex:SetAllPoints()
+    tex:SetColorTexture(1.0, 0.5, 0, 0.5)
+    return frame
+end
+
+SLASH_FRAME_TESTS1 = "/frame"
+SlashCmdList["FRAME_TESTS"] = function( num )
+    local f = {}
+
+    for i = 1, 5 do
+        f[i] = createFrame()
     end
-    btn.threatIconFrame = btn:createIconFrame()
-    btn:updatePortraitButtons( btn.threatIconFrame )
+    f[3]:Hide()
 
-return
+
+end
+
+SLASH_BUTTON_TESTS1 = "/btn"
+SlashCmdList["BUTTON_TESTS"] = function( num )
+    btn:updatePortraitButtons( btn.threatIconStack )
+    return
  end
 --[[  /run print("this is \124cFFFF0000red and \124cFF00FF00this is green\124r back to white")
  > this is red and this is green back to white

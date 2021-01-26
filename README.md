@@ -2,12 +2,21 @@
 
 VERSION: Alpha V 1.0
 
-Visual Threat is a World of Warcraft Addon that presents a VERY simple visual display of the threat (a.k.a aggro) on each party member. For example, if you are in a party with 5 members, the threat display will be a vertical stack of party member portraits. The icons are ordered from high to low according to threat. The member with the highest threat will, hopefully, be the tank. Over the course of an encounter threat levels will change (e.g., the tank loses aggro). When the change is such as the icons need to reordered the addon will be shuffled.
+Visual Threat is a World of Warcraft Addon that presents a VERY simple visual display of the threat (a.k.a aggro) on each party member. For example, if you are in a party with 5 members, the threat display will be a vertical stack of party member portraits. The portraits are ordered from high to low according to threat. The member with the highest threat (hopefully the tank) will be at the top of the frame. Over the course of an encounter threat levels will change (e.g., the tank loses aggro) and, if a lower player experiences.
+
+1. The addon visualizes relative threat by positioning the player icons such that the icon of the player with the most threat is at top of the threat stack. As you might have surmised, the icon of the player with the least threat is at the bottom. The stack updates in real time. Player icons will rise and fall in the stack as their threat changes.
+2. Each icon also provides: 
+    (a) The % of total threat relative to other members of the party.
+    (b) The amount of damage taken by a player.
+    (c) The amount of healing a player has received.
+    (d) When out of combat, clicking on an icon will calculate various metrics of tank, healing, and DPS threat management.
 
 The stack also includes an icon for each pet in the party. So, in a party of 5 with a warlock and a hunter, each with a pet summoned, the threat stack will be composed of 7 icons.
 
-NEXT RELEASE: Alpha V 2.0
-Two new features will be added:
+How good is your tank?
 
-1. When a player moves to the top of the stack, its icon will display a flashing red icon for a brief time.
-2. Visual Threat will incorporate information from the COMBAT_EVENT_LOG_UNFILTERED. The first change will be to add a damage metric to the threat percent. Specifically, in addition to threat, each icon will display the player's contribution to the total damage done by party. For example, if the total party damage is 100K and your character has contributed 30K to the effort, your icon will display your threat along with a 30% damage figure.
+Tank Performance = K( DamageTakenByTank - Sum( damageTakenByOtherGroupMembers))
+
+Healing Performance = K( HealingReceivedByTank / TotalHealingReceived )
+
+

@@ -18,22 +18,49 @@ local sprintf = _G.string.format
 local STATUS_SUCCESS 	= errors.STATUS_SUCCESS
 local STATUS_FAILURE 	= errors.STATUS_FAILURE
 
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
+local VT_UNIT_NAME               = grp.VT_UNIT_NAME
+local VT_UNIT_ID                 = grp.VT_UNIT_ID   
+local VT_PET_OWNER               = grp.VT_PET_OWNER 
+local VT_MOB_ID                  = grp.VT_MOB_ID                  
+local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS              
+local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
+local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
+local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
+local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
+local VT_PLAYER_FRAME            = grp.VT_PLAYER_FRAME
+local VT_BUTTON                  = grp.VT_BUTTON 
+local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
+local function blizzPartyExists()
+    local partyExists = false
+    local count = 0
+
+    -- if no party exists then return false
+    local blizzNames = GetHomePartyInfo()
+    if blizzNames ~= nil then
+        partyExists = true
+        count = #blizzNames
+    end
+    return partyExists, count
+end
+
+local eventFrame = CreateFrame("Frame")
+-- We never Unregister these events
+eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")			-- arg1: boolean isInitialLogin, arg2: boolean isReloadingUI
+eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
-eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 eventFrame:RegisterEvent("GROUP_JOINED")
 eventFrame:RegisterEvent("GROUP_LEFT")
+eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+eventFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+eventFrame:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
 eventFrame:RegisterEvent("PET_DISMISS_START")
-eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-eventFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE") 		-- unitTarget
-eventFrame:RegisterEvent("UNIT_THREAT_LIST_UPDATE")				-- unitTarget
+-- eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
-eventFrame:SetScript("OnEvent", 
-function( self, event, ... )
+local function OnEvent( self, event, ...)
+
 	local arg1, arg2, arg3, arg4 = ...
     local r = {STATUS_SUCCESS, nil, nil}
 
@@ -47,92 +74,115 @@ function( self, event, ... )
     end   
     ------------------------------ COMBAT LOG EVENT UNFILTERED -----------
     if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        if UnitPlayerOrPetInParty( "player" ) == false then return end
-        
         local stats = {CombatLogGetCurrentEventInfo()}
 
-        if not grp:isPartyMember( stats[9] ) then
-            return
-        end
-        -- is the unit in the blizzard party? 
-        -- OK, dispatch the event to its handler
         ceh:handleEvent( stats )
         return
     end
     ------------------------------ PLAYER ENTERING WORLD -----------------
     if event == "PLAYER_ENTERING_WORLD" then
-        if UnitPlayerOrPetInParty( "player" ) == false then E:where() return end
+        -- E:where("DEBUG:"..UnitName("player").."-"..event )
 
-        grp.playersParty, r = grp:initPlayersParty()
-        if grp.playersParty == "" then
-            grp.playersParty = nil
+        -- discontinue processing if no blizz party exists.
+        -- NOTE: if a party does exist the player's name is not
+        -- returned in the table of names.
+        -- local partyNames = GetHomePartyInfo()
+        -- partyNames{} will not contain UnitName("player")
+        local exists, partyCount = blizzPartyExists()
+        if blizzPartyExists() == false then
+            -- E:where("DEBUG LOG: No Home Party exists. Returning.")
+            return 
+        end
+
+        r = grp:initPlayersParty()
+        if r[1] == STATUS_FAILURE then
+            E:where( r[2])
+            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
             return
         end
-        if btn.threatIconFrame == nil then
-            btn.threatIconFrame = btn:createIconFrame()
-        end
-        btn:updatePortraitButtons()
-        return
-    end
-        ------------------------- PLAYER LOGIN -----------------
-    if event == "PLAYER_LOGIN" and arg1 == "VisualThreat" then
-        return
-    end
-        ------------------------- PLAYER LOGOUT -----------------
-    if event == "PLAYER_LOGOUT" then
-        return
-    end
-    --------------------------- GROUP ROSTER UPDATE ---------------------
-    if event == "GROUP_ROSTER_UPDATE" then
-        if UnitPlayerOrPetInParty( "player" ) == false then return end
-
-        grp.playersParty, r = grp:initPlayersParty()
-        if grp.playersParty == "" then
-            grp.playersParty = nil
+        local success, r = grp:congruencyCheck()
+        if not success then
+            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
             return
         end
-        btn.threatIconFrame = btn:createIconFrame()
-        btn:updatePortraitButtons()
-        return
-    end
-    --------------------------- GROUP JOINED ---------------------
-    if event == "GROUP_JOINED" then
-        if UnitPlayerOrPetInParty( "player" ) == false then return end
-
-        grp.playersParty, r = grp:initPlayersParty()
-        if grp.playersParty == "" then
-            grp.playersParty = nil
-            return
+        
+        if btn.threatIconStack == nil then
+            btn.threatIconStack = btn:createIconStack()
         end
-      btn:updatePortraitButtons( btn.threatIconFrame )
-      return
+        return
     end
     --------------------------- GROUP LEFT ---------------------
     if event == "GROUP_LEFT" then
-        if UnitPlayerOrPetInParty( "player" ) == false then return end
-        grp.playersParty, r = grp:initPlayersParty()
-        if grp.playersParty == "" then
-            grp.playersParty = nil
+        msg:post( "DEBUG: "..UnitName("player").."-"..event )
+        if not blizzPartyExists() then
+            grp:hidePlayerFrame()
             return
         end
-      if btn.threatIconFrame == nil then
-        btn.threatIconFrame = btn:createIconFrame()
-      end
-      btn:updatePortraitButtons()
-    return
+
+        r = grp:initPlayersParty()
+        if r[1] ~= STATUS_SUCCESS then
+            msg:post( sprintf("%s\n\n%s\n", r[2], r[3]))
+            return
+        end
+        local success, r = grp:congruencyCheck()
+        if not success then
+            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+            return
+        end
     end
+    --------------------------- GROUP JOINED ---------------------
+    if event == "GROUP_JOINED" then
+
+        local r = {STATUS_SUCCESS, nil, nil }
+        r = grp:initPlayersParty()
+        if r[1] ~= STATUS_SUCCESS then
+            msg:post( sprintf("%s\n\n%s\n", r[2], r[3]))
+            return
+        end
+
+        local success, r = grp:congruencyCheck()
+        if not success then
+            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+            return
+        end
+
+        if btn.threatIconStack == nil then
+            btn.threatIconStack = btn:createIconStack()
+        end
+    end
+    --------------------------- GROUP ROSTER UPDATE ---------------------
+    if event == "GROUP_ROSTER_UPDATE" then
+        -- E:where( "DEBUG: "..UnitName("player").."-"..event )
+        -- At this point the players have just processed GROUP_JOINED or
+        -- GROUP_LEFT. They are already members of both player and Blizz
+        -- parties.
+        --
+        -- The code in this handler makes sure everything is put together
+        -- properly. Especially that the playersParty and the blizzParty 
+        -- members are exactly the same.
+
+        r = grp:initPlayersParty()
+        if r[1] ~= STATUS_SUCCESS then
+            msg:post( sprintf("%s\n\n%s\n", r[2], r[3]))
+            return
+        end
+        local success, r = grp:congruencyCheck()
+        if not success then
+            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+            return
+        end
+        return
+    end
+    ------------------------- PLAYER LOGIN -----------------
+    if event == "PLAYER_LOGIN" and arg1 == "VisualThreat" then
+        return
+    end
+    ------------------------- PLAYER LOGOUT -----------------
+    if event == "PLAYER_LOGOUT" then
+        return
+    end        
     --------------------------- PET DISMISS START ---------------------
     if event == "PET_DISMISS_START" then
-        if UnitPlayerOrPetInParty( "player" ) == false then E:where() return end
-        grp.playersParty, r = grp:initPlayersParty()
-        if grp.playersParty == "" then
-            grp.playersParty = nil
-            return
-        end
-      if btn.threatIconFrame == nil then
-        btn.threatIconFrame = btn:createIconFrame()
-      end
-      btn:updatePortraitButtons()
       return
     end
     ---------------------- UNIT THREAT SITUATION UPDATE ---------------
@@ -141,9 +191,10 @@ function( self, event, ... )
     end
     ---------------------- UNIT THREAT LIST UPDATE ---------------
     if event == "UNIT_THREAT_LIST_UPDATE" then
-        if UnitPlayerOrPetInParty( "player" ) == false then E:where() return end
+        if not blizzPartyExists() then return end
         tev:updateThreatStatus( arg1 )
-	end
-end)
+    end
+end
 
 
+eventFrame:SetScript("OnEvent", OnEvent ) 

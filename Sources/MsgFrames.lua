@@ -84,7 +84,6 @@ local function createSummaryButton( f, placement, offX, offY )
     summaryButton:SetText("Summary")
     summaryButton:SetScript("OnClick", 
         function(self)
-            E:where()
             evh:summarizeEncounter()
             evh:dumpTables()
            end)

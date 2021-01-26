@@ -22,9 +22,10 @@ local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_TAKEN           = grp.VT_HEALING_TAKEN
-local VT_BUTTON                  = grp.VT_BUTTON
-local VT_NUM_ELEMENTS            = grp.VT_BUTTON 
+local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
+local VT_PLAYER_FRAME            = grp.VT_PLAYER_FRAME
+local VT_BUTTON                  = grp.VT_BUTTON 
+local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 -- When the UNIT_THREAT_LIST_UPDATE fires, the handler calls updateThreatStatus 
 function tev:updateThreatStatus( mobId )
@@ -36,10 +37,8 @@ function tev:updateThreatStatus( mobId )
     for _, entry in ipairs( grp.playersParty ) do
         local _, _, _, _, threatValue = UnitDetailedThreatSituation( entry[VT_UNIT_ID], mobId )
         if threatValue == nil then 
-            -- E:where("threatValue nil for "..entry[VT_UNIT_NAME])
             threatValue = 0 
         else
-            -- E:where( "threatValue  "..tostring(threatValue ).." for "..entry[VT_UNIT_NAME] )
         end
 
         if threatValue > 0 then
@@ -47,13 +46,11 @@ function tev:updateThreatStatus( mobId )
             sumThreatValue = sumThreatValue + threatValue
         end
     end
--- E:where()
     if sumThreatValue > 0 then
         for _, entry in ipairs( grp.playersParty ) do
             local threatValueRatio = entry[VT_THREAT_VALUE]/sumThreatValue
             grp:setThreatValueRatio( entry[VT_UNIT_NAME], threatValueRatio )
         end
     end  
-    -- E:where()
     btn:updatePortraitButtons()
 end
