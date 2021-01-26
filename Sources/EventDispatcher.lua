@@ -31,19 +31,6 @@ local VT_PLAYER_FRAME            = grp.VT_PLAYER_FRAME
 local VT_BUTTON                  = grp.VT_BUTTON 
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
-local function blizzPartyExists()
-    local partyExists = false
-    local count = 0
-
-    -- if no party exists then return false
-    local blizzNames = GetHomePartyInfo()
-    if blizzNames ~= nil then
-        partyExists = true
-        count = #blizzNames
-    end
-    return partyExists, count
-end
-
 local eventFrame = CreateFrame("Frame")
 -- We never Unregister these events
 eventFrame:RegisterEvent("ADDON_LOADED")
@@ -66,10 +53,12 @@ local function OnEvent( self, event, ...)
 
     -------------------------- ADDON_LOADED ----------------
     if event == "ADDON_LOADED" and arg1 == "VisualThreat" then        -- The framePosition array has been loaded by this point
+
         if framePositionSaved == false  then
             framePosition = { "CENTER", nil, "CENTER", 0, 0 }
             framePositionSaved = true
         end
+        DEFAULT_CHAT_FRAME:AddMessage( L["ADDON_LOADED_MESSAGE"], 1.0, 1.0, 0.0 )
         return        
     end   
     ------------------------------ COMBAT LOG EVENT UNFILTERED -----------
@@ -81,28 +70,20 @@ local function OnEvent( self, event, ...)
     end
     ------------------------------ PLAYER ENTERING WORLD -----------------
     if event == "PLAYER_ENTERING_WORLD" then
-        -- E:where("DEBUG:"..UnitName("player").."-"..event )
-
         -- discontinue processing if no blizz party exists.
-        -- NOTE: if a party does exist the player's name is not
-        -- returned in the table of names.
-        -- local partyNames = GetHomePartyInfo()
-        -- partyNames{} will not contain UnitName("player")
-        local exists, partyCount = blizzPartyExists()
-        if blizzPartyExists() == false then
-            -- E:where("DEBUG LOG: No Home Party exists. Returning.")
+        local exists, partyCount = grp:blizzPartyExists()
+        if not exists then
             return 
         end
 
         r = grp:initPlayersParty()
         if r[1] == STATUS_FAILURE then
-            E:where( r[2])
-            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+            msg:postResult( r )
             return
         end
         local success, r = grp:congruencyCheck()
         if not success then
-            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+            msg:postResult( r )
             return
         end
         
@@ -113,20 +94,19 @@ local function OnEvent( self, event, ...)
     end
     --------------------------- GROUP LEFT ---------------------
     if event == "GROUP_LEFT" then
-        msg:post( "DEBUG: "..UnitName("player").."-"..event )
-        if not blizzPartyExists() then
+        if not grp:blizzPartyExists() then
             grp:hidePlayerFrame()
             return
         end
 
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
-            msg:post( sprintf("%s\n\n%s\n", r[2], r[3]))
+            msg:postResult( r )
             return
         end
         local success, r = grp:congruencyCheck()
         if not success then
-            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+            msg:postResult( r )
             return
         end
     end
@@ -136,14 +116,13 @@ local function OnEvent( self, event, ...)
         local r = {STATUS_SUCCESS, nil, nil }
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
-            msg:post( sprintf("%s\n\n%s\n", r[2], r[3]))
+            msg:postResult( r )
             return
         end
 
         local success, r = grp:congruencyCheck()
         if not success then
-            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
-            return
+            msg:postResult( r )
         end
 
         if btn.threatIconStack == nil then
@@ -163,12 +142,12 @@ local function OnEvent( self, event, ...)
 
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
-            msg:post( sprintf("%s\n\n%s\n", r[2], r[3]))
+            msg:postResult( r )
             return
         end
         local success, r = grp:congruencyCheck()
         if not success then
-            msg:post( sprintf("%s\n%s\n", r[2], r[3]))
+            msg:postResult( r )
             return
         end
         return
@@ -191,7 +170,7 @@ local function OnEvent( self, event, ...)
     end
     ---------------------- UNIT THREAT LIST UPDATE ---------------
     if event == "UNIT_THREAT_LIST_UPDATE" then
-        if not blizzPartyExists() then return end
+        if not grp:blizzPartyExists() then return end
         tev:updateThreatStatus( arg1 )
     end
 end
