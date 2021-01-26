@@ -26,7 +26,6 @@ local STATUS_SUCCESS 	= errors.STATUS_SUCCESS
 local STATUS_FAILURE 	= errors.STATUS_FAILURE
 local SUCCESS 			= errors.SUCCESS
 
-
 ---------------------------------------------------------------------------------------------------
 --                      LOCAL FUNCTIONS
 ----------------------------------------------------------------------------------------------------
@@ -58,7 +57,7 @@ local function simplifyStackTrace( stackTrace )
 	end
 	return simplifiedStackTrace
 end	
-local function getFileAndLineNo( stackTrace )
+local function fileAndLineNo( stackTrace )
 	local pieces = {strsplit( ":", stackTrace, 5 )}
 	local segment = {strsplit( "\\", pieces[1], 5 )}
 	local i = 1
@@ -73,34 +72,17 @@ local function getFileAndLineNo( stackTrace )
 	local strLen = string.len( fileName )
 	local fileName = string.sub( fileName, 1, strLen - 2 )
 	local lineNumber = tonumber(pieces[2])
-	lineNumber = lineNumber
-	FileAndLine = sprintf("[%s:%d]", fileName, lineNumber )
+	local fileAndLine = sprintf("[%s:%d]", fileName, lineNumber )
 
-	return FileAndLine
+	return fileAndLine
 end
 ---------------------------------------------------------------------------------------------------
 --                      PUBLIC/EXPORTED FUNCTIONS
 ----------------------------------------------------------------------------------------------------
-
--- USAGE:
---			if not check(result, msg ) then
---				return( result )
---			end
-function errors:check(result, msg )
-	local result = SUCCESS
-	local successful = true
-
-	if result[1] ~= STATUS_SUCCESS then
-		successful = false
-        local stackFrame = debugstack()
-        local playerName = UnitName("player")
-        local s = sprintf("Entry not created for %s.\n", player )
-        return E:setResult( s, stackFrame )   
-	end
-	return successful, result
-end
+-- return an error message of the form [File.lua:66] FAILED: Invalid parameter
 function errors:setResult( errMsg, stackTrace )
-	errMsg = sprintf("FAILED: %s", errMsg )
+	local fn = fileAndLineNo( stackTrace )
+	errMsg = sprintf("%s FAILED: %s\nSTACK TRACE:\n%s\n", fn, errMsg, stackTrace )
 	local result = {STATUS_FAILURE, errMsg, stackTrace}
 	return result
 end
@@ -115,7 +97,7 @@ function errors:postResult( result )
 	msg:post( str )
 end
 function errors:where( msg )
-	local fn = getFileAndLineNo( debugstack(2) )
+	local fn = fileAndLineNo( debugstack(2) )
 	local str = nil
 	if msg then
 		str = sprintf("%s %s", fn, msg )
@@ -123,5 +105,5 @@ function errors:where( msg )
 		str = fn
 	end
 	DEFAULT_CHAT_FRAME:AddMessage( str, 1.0, 1.0, 0.0 )
-	return( str )
 end
+
