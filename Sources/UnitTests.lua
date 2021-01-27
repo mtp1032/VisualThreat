@@ -33,7 +33,7 @@ local initPlayersParty = grp.initPlayersParty
 local function testOne( s )
     local result = {STATUS_SUCCESS, nil, nil }
     if s == nil then
-        local st = debugstack(2)
+        local st = debugstack()
         result = E:setResult(L["ARG_NIL"], st )
     end
     return result
@@ -132,7 +132,7 @@ local function createFrame()
 end
 
 local function bottom()
-    local st = debugstack(2)
+    local st = debugstack()
     local str = sprintf("%s: %s", L["ARG_NIL"], "unitName" )
     return E:setResult( str, st )
 end

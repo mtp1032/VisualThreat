@@ -279,17 +279,11 @@ end
 
 local errorFrame = nil
 function msg:postResult( result )
+    local st = debugstack()
+
     if errorFrame == nil then
         errorFrame = msg:createErrorMsgFrame("Errors: Visual Threat")
     end
     errorFrame:Show()
     errorFrame.Text:Insert( result[2] )
 end
-
--- local frameTitle = L["USER_MSG_FRAME"]
--- local msgFrame = msg:createMsgFrame( frameTitle)
-
--- function msg:postMsg( message )
---     msg:showFrame( msgFrame )
---     msgFrame.Text:Insert( message )
--- end

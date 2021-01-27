@@ -94,17 +94,14 @@ local function OnEvent( self, event, ...)
     end
     --------------------------- GROUP LEFT ---------------------
     if event == "GROUP_LEFT" then
-        if not grp:blizzPartyExists() then
-            grp:hidePlayerFrame()
-            return
-        end
+        btn.threatIconStack:Hide()
 
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
             msg:postResult( r )
             return
         end
-        local success, r = grp:congruencyCheck()
+        local success, r = grp:congruencyCheck() 
         if not success then
             msg:postResult( r )
             return
@@ -112,8 +109,8 @@ local function OnEvent( self, event, ...)
     end
     --------------------------- GROUP JOINED ---------------------
     if event == "GROUP_JOINED" then
+        local n = grp:getBlizzPartyCount()
 
-        local r = {STATUS_SUCCESS, nil, nil }
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
             msg:postResult( r )
@@ -125,20 +122,22 @@ local function OnEvent( self, event, ...)
             msg:postResult( r )
         end
 
-        if btn.threatIconStack == nil then
-            btn.threatIconStack = btn:createIconStack()
+        if grp:getBlizzPartyCount() > 1 then
+            if btn.threatIconStack == nil then
+                btn.threatIconStack = btn:createIconStack()
+            end
         end
     end
     --------------------------- GROUP ROSTER UPDATE ---------------------
     if event == "GROUP_ROSTER_UPDATE" then
-        -- E:where( "DEBUG: "..UnitName("player").."-"..event )
-        -- At this point the players have just processed GROUP_JOINED or
-        -- GROUP_LEFT. They are already members of both player and Blizz
-        -- parties.
-        --
-        -- The code in this handler makes sure everything is put together
-        -- properly. Especially that the playersParty and the blizzParty 
-        -- members are exactly the same.
+
+        local blizzPartyNames = GetHomePartyInfo()
+        if blizzPartyNames == nil then
+            return
+        end
+        if #blizzPartyNames < 2 then
+            return
+        end
 
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
@@ -149,6 +148,11 @@ local function OnEvent( self, event, ...)
         if not success then
             msg:postResult( r )
             return
+        end
+        if btn.threatIconStack ~= nil then
+            btn.threatIconStack:Hide()
+            btn.threatIconStack = btn:createIconStack()
+            btn.threatIconStack:Show()
         end
         return
     end

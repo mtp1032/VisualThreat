@@ -49,7 +49,7 @@ local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
 local party     = {"party1",    "party2",    "party3",    "party4" }
 
-grp.playersParty = nil
+---------------------------------------------+ = nil
 
 function grp:printPartyEntry( nvp )
     if nvp[VT_PET_OWNER] ~= nil then
@@ -67,12 +67,12 @@ local function createNewEntry( unitName, unitId, ownerName, mobId )
     local r = {STATUS_SUCCESS, nil, nil}
 
     if unitName == nil then
-        local st = debugstack(2)
+        local st = debugstack()
         local str = sprintf("%s: %s", L["ARG_NIL"], "unitName" )
         return nil, E:setResult( str, st )
     end
     if unitId == nil then
-        local st = debugstack(2)
+        local st = debugstack()
         local str = sprintf("%s: %s", "unitId", L["ARG_NIL"] )
         return nil, E:setResult( str, st )
     end
@@ -130,17 +130,14 @@ function grp:blizzPartyExists()
     return partyExists, count
 end
 -- returns the count of the number of members in the blizz party
--- includes the "player".
+-- Does not count the party leader or any pets.
 function grp:getBlizzPartyCount()
     local blizzMemberCount = 0
     local blizzNames = GetHomePartyInfo()
     if blizzNames == nil then 
         return blizzMemberCount
     end
-    -- the playerCount includes the "player". Therefore, the player count can
-    -- be a maximum of 5 players, "player", "party1", ..., "party4"
-    local blizzMemberCount = #blizzNames + 1
-    return blizzMemberCount 
+    return #blizzNames 
 end
 function grp:getBlizzPetCount()
     local blizzPetCount = 0
@@ -174,6 +171,7 @@ function grp:getBlizzPartyNames()
     end
     return t
 end
+-- does not include the party leader
 function grp:getPartyNames()
     local partyNames = {}
     local i = 1
@@ -227,6 +225,7 @@ function grp:insertPartyMember( unitName, unitId, OwnerName )
         return nil, r 
     end
     if grp.playersParty == nil then grp.playersParty = {} end
+
     table.insert( grp.playersParty, newEntry )
     return newEntry, r
 end
@@ -353,50 +352,56 @@ function grp:initPlayersParty()
 
     local blizzPartyCount = grp:getBlizzPartyCount()
     if blizzPartyCount == 0 then
-        return
+        return r
     end
-    -- nullify the players party. We start from scratch each time
-    -- this function is called.
-    grp.playersParty = {}
-
-    local blizzPartyNames = GetHomePartyInfo()
-
     -- The calling player is special and not included among the
     -- names returned by GetHomePartyInfo(). We need to explicitly
     -- add it.
+
+    grp.playersParty = {}
+
+    -- This is always the player doing the inviting, i.e., the party leader. S/He
+    -- will not show up in blizzParty table.
     local memberName = UnitName("player")
     local playerId = "player"
-    r = grp:insertPartyMember(memberName, playerId, nil)
-    if r[1] == STATUS_FAILURE then
-        return r
+    local playerEntry, r = grp:insertPartyMember(memberName, playerId, nil)
+    if playerEntry == nil then
+        return r 
     end
     local petName = UnitName("pet")
     if petName ~= nil then
-        r = grp:insertPartyMember(petName, "pet", memberName )
-        if r[1] == STATUS_FAILURE then
+        local petEntry, r = grp:insertPartyMember(petName, "pet", memberName )
+        if petEntry == nil then
             return r
         end
     end
     -- NOTE: the table of names returned by GetHomePartyInfo() does
-    --          not include pets or the player.
-    local count = #blizzPartyNames
-    for i = 1, count do
-        -- get a blizz party member's entry
-        local blizzMemberId = party[i]
-        local blizzMemberName = UnitName( blizzMemberId )
-        if not grp:inPlayersParty(blizzMemberName ) then
-            r = grp:insertPartyMember( blizzMemberName, blizzMemberId, nil )
-            if r[1] == STATUS_FAILURE then
+    --          not include pets or the player whose name is given by 
+    --          UnitName( "player").
+    -- local count = grp:getBlizzPartyCount()
+    -- local partyCount = grp:getPartyCount()
+    -- if count ~= partyCount then
+    --     local st = debugstack()
+    --     local s = sprintf("party counts unequal: blizz is %d, player is %d", count, partyCount )
+    --     return E:setResult(s, st)
+    -- end
+    local count = grp:getBlizzPartyCount()
+    for i = 1, count do      
+        -- get the blizz party member's name.
+        local blizzMemberName = UnitName( party[i] )
+        if not grp:inPlayersParty( blizzMemberName ) then
+            local newEntry, r = grp:insertPartyMember( blizzMemberName, party[i], nil )
+            if newEntry == nil then
                 return r
             end
         end
+    
         local petName = UnitName( partypet[i])
         if petName ~= nil then
-            local entry, r = grp:insertPartyMember( "Zilgup", "partypet1", "babethree" )
-            if r[1] == STATUS_FAILURE then
+            local entry, r = grp:insertPartyMember( petName, partypet[i], blizzMemberName  )
+            if entry == nil then
                 return r
             end
-            local nvp = grp:getEntryByName( petName )
         end
     end        
     return r
@@ -407,27 +412,28 @@ function grp:congruencyCheck()
     local partyCount = grp:getPartyCount()
     local petCount = grp:getPetCount()
 
-    -- TEST 1: numbers match
-    if blizzPartyCount  ~= partyCount then 
-        local st = debugstack(2)
-        local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
-        return false, E:setResult( str, st )
-    end
-    if blizzPetCount ~= petCount then 
-        local st = debugstack(2)
-        local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
-        return false, E:setResult( str, st )
-    end
-
     -- TEST 2: names match
     local partyNames = grp:getPartyNames()
     local blizzNames = grp:getBlizzPartyNames()
     for i = 1, blizzPartyCount do
         if partyNames[i] ~= blizzNames[i] then
-            local st = debugstack(2)
+            local st = debugstack()
             local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
             return false, E:setResult( str, st )
         end
     end
+
+    -- TEST 1: numbers match
+    -- if blizzPartyCount ~= partyCount then 
+    --     local st = debugstack()
+    --     local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
+    --     return false, E:setResult( str, st )
+    -- end
+    -- if blizzPetCount ~= petCount then 
+    --     local st = debugstack()
+    --     local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
+    --     return false, E:setResult( str, st )
+    -- end
+
     return true
 end
