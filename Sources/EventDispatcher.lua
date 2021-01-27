@@ -96,20 +96,19 @@ local function OnEvent( self, event, ...)
     if event == "GROUP_LEFT" then
         btn.threatIconStack:Hide()
 
-        r = grp:initPlayersParty()
-        if r[1] ~= STATUS_SUCCESS then
-            msg:postResult( r )
-            return
-        end
-        local success, r = grp:congruencyCheck() 
-        if not success then
-            msg:postResult( r )
-            return
-        end
+        -- r = grp:initPlayersParty()
+        -- if r[1] ~= STATUS_SUCCESS then
+        --     msg:postResult( r )
+        --     return
+        -- end
+        -- local success, r = grp:congruencyCheck() 
+        -- if not success then
+        --     msg:postResult( r )
+        --     return
+        -- end
     end
     --------------------------- GROUP JOINED ---------------------
     if event == "GROUP_JOINED" then
-        local n = grp:getBlizzPartyCount()
 
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
@@ -122,10 +121,8 @@ local function OnEvent( self, event, ...)
             msg:postResult( r )
         end
 
-        if grp:getBlizzPartyCount() > 1 then
-            if btn.threatIconStack == nil then
-                btn.threatIconStack = btn:createIconStack()
-            end
+        if btn.threatIconStack == nil then
+            btn.threatIconStack = btn:createIconStack()
         end
     end
     --------------------------- GROUP ROSTER UPDATE ---------------------
@@ -135,10 +132,6 @@ local function OnEvent( self, event, ...)
         if blizzPartyNames == nil then
             return
         end
-        if #blizzPartyNames < 2 then
-            return
-        end
-
         r = grp:initPlayersParty()
         if r[1] ~= STATUS_SUCCESS then
             msg:postResult( r )
