@@ -93,8 +93,11 @@ function errors:postResult( result )
 
 	local reason = result[2]
 	local stackTrace = result[3]
-	local str = sprintf("%s\n\n%s\n", reason, stackTrace  )
+	local str = sprintf("%s\n", reason )
 	msg:post( str )
+end
+function errors:fileLocation(st )
+	return fileAndLineNo( st )
 end
 function errors:where( msg )
 	local fn = fileAndLineNo( debugstack(2) )

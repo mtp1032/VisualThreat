@@ -19,38 +19,60 @@ local STATUS_SUCCESS 	= E.STATUS_SUCCESS
 local STATUS_FAILURE 	= E.STATUS_FAILURE
 local RESULT 			= E.SUCCESS -- = { STATUS_SUCCESS, nil, nil }
 
-grp.VT_UNIT_NAME           = 1
-grp.VT_UNIT_ID             = 2 
-grp.VT_PET_OWNER           = 3
-grp.VT_MOB_ID              = 4  
-grp.VT_AGGRO_STATUS        = 5      
-grp.VT_THREAT_VALUE        = 6     
-grp.VT_THREAT_VALUE_RATIO  = 7
-grp.VT_DAMAGE_TAKEN        = 8
-grp.VT_HEALING_RECEIVED    = 9
-grp.VT_PLAYER_FRAME        = 10
-grp.VT_BUTTON              = 11
-grp.VT_NUM_ELEMENTS     = grp.VT_BUTTON
+grp.VT_UNIT_NAME            = 1
+grp.VT_UNIT_ID              = 2 
+grp.VT_PET_OWNER            = 3
+grp.VT_MOB_ID               = 4  
+grp.VT_THREAT_VALUE         = 5     
+grp.VT_ACCUM_THREAT_VALUE   = 6
+grp.VT_THREAT_VALUE_RATIO   = 7
 
--- See https://wow.gamepedia.com/API_Region_GetPoint
+grp.VT_DAMAGE_TAKEN         = 8
+grp.VT_ACCUM_DAMAGE_TAKEN   = 9
+
+grp.VT_HEALING_RECEIVED     = 10
+grp.VT_ACCUM_HEALING_RECEIVED  = 11
+
+grp.VT_BUTTON               = 12
+grp.VT_NUM_ELEMENTS         = grp.VT_BUTTON
+
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
 local VT_PET_OWNER               = grp.VT_PET_OWNER 
 local VT_MOB_ID                  = grp.VT_MOB_ID                  
-local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS              
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
 local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
-local VT_PLAYER_FRAME            = grp.VT_PLAYER_FRAME
+
+-- Accumulators
+local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
+local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
+local VT_ACCUM_HEALING_RECEIVED     = grp.VT_ACCUM_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
 local party     = {"party1",    "party2",    "party3",    "party4" }
 
----------------------------------------------+ = nil
+grp.playersParty = {}
 
+---------------------------------------------+
+function grp:getAddonPartyNames()
+    if #grp.playersParty == 0 then return nil end
+
+    local partyNames = {}
+    local i = 1
+    for _, v in ipairs( grp.playersParty ) do
+        if v[VT_UNIT_NAME] ~= UnitName("player") then
+            if v[VT_PET_OWNER] == nil then 
+                partyNames[i] = v[VT_UNIT_NAME]
+                i = i + 1
+            end
+        end
+    end
+    return partyNames
+end
 function grp:printPartyEntry( nvp )
     if nvp[VT_PET_OWNER] ~= nil then
         msg:post( sprintf("Unit Name = %s, UnitId = %s, Owner's Name = %s\n", 
@@ -91,25 +113,32 @@ local function createNewEntry( unitName, unitId, ownerName, mobId )
 end 
 function grp:inPlayersParty( memberName )
     local isMember = false
-    if grp.playersParty == nil or #grp.playersParty == 0 then
+    if #grp.playersParty == 0 then
         return isMember
     end
-    for _, v in ipairs( grp.playersParty) do
+    for _, v in ipairs( grp.playersParty ) do
         if v[1] == memberName then
             isMember = true
         end
     end
     return isMember
 end
+function grp:getPlayerNames()
+    local playerNames = {}
+    for i, v in ipairs( grp.playersParty ) do
+        playerNames[i] = v[VT_UNIT_NAME]
+    end
+    return playerNames
+end
 function grp:inBlizzParty( memberName )
     local isBlizzMember = false
     
-    local blizzNames = GetHomePartyInfo()
+    local blizzNames = grp:getBlizzPartyNames()
     if blizzNames == nil then return isBlizzMember end
 
     local count = #blizzNames
     for i = 1, count do
-        for _, v in ipairs( grp.playersParty) do
+        for _, v in ipairs( grp.playersParty ) do
             if blizzNames[i] == v[VT_UNIT_NAME] then
                 isBlizzMember = true
             end
@@ -122,7 +151,7 @@ function grp:blizzPartyExists()
     local count = 0
 
     -- if no party exists then return false
-    local blizzNames = GetHomePartyInfo()
+    local blizzNames = grp:getBlizzPartyNames()
     if blizzNames ~= nil then
         partyExists = true
         count = #blizzNames
@@ -133,7 +162,7 @@ end
 -- Does not count the party leader or any pets.
 function grp:getBlizzPartyCount()
     local blizzMemberCount = 0
-    local blizzNames = GetHomePartyInfo()
+    local blizzNames = grp:getBlizzPartyNames()
     if blizzNames == nil then 
         return blizzMemberCount
     end
@@ -141,7 +170,7 @@ function grp:getBlizzPartyCount()
 end
 function grp:getBlizzPetCount()
     local blizzPetCount = 0
-    local blizzNames = GetHomePartyInfo()
+    local blizzNames = grp:getBlizzPartyNames()
     if blizzNames == nil then 
         return blizzPetCount
     end
@@ -157,37 +186,12 @@ function grp:getBlizzPetCount()
     end
     return blizzPetCount 
 end
-function grp:getBlizzPartyNames()
-    local blizzNames = GetHomePartyInfo()
-    if blizzNames == nil then return nil end
-    local t = {}
-    t[1] = UnitName("player")
-    local count = #blizzNames + 1
-    for i = 2, count do
-        t[i] = blizzNames[i-1]
-    end
-
-    for i = 1, #t do
-    end
-    return t
-end
--- does not include the party leader
-function grp:getPartyNames()
-    local partyNames = {}
-    local i = 1
-    for _, v in ipairs( grp.playersParty ) do
-        if v[VT_PET_OWNER] == nil then 
-            partyNames[i] = v[VT_UNIT_NAME]
-            i = i + 1
-        end
-    end
-    return partyNames
-end
 -- returns a count of the number of playerParty members. Does not
 -- include pets (use getPetCount())
 function grp:getPartyCount()
     local partyCount = 0
-    if grp.playersParty == nil or #grp.playersParty == 0 then
+    local name = nil
+    if #grp.playersParty == 0 then
         return partyCount
     end
 
@@ -195,6 +199,7 @@ function grp:getPartyCount()
         -- If the VT_PET_OWNER field contains a name
         -- this entry is a pet, not a player.
         if v[VT_PET_OWNER] == nil then 
+            name = v[1]
             partyCount = partyCount + 1
         end
     end
@@ -202,7 +207,7 @@ function grp:getPartyCount()
 end
 function grp:getPetCount()
     local petCount = 0
-    if grp.playersParty == nil or #grp.playersParty == 0 then
+    if #grp.playersParty == 0 then
         return petCount
     end
 
@@ -215,34 +220,37 @@ function grp:getPetCount()
         end
     end
     return petCount
-
 end
 function grp:insertPartyMember( unitName, unitId, OwnerName )    
     local r = {STATUS_SUCCESS, nil, nil }
 
+    if grp:inPlayersParty( unitName ) then 
+        return r 
+    end
+
     local newEntry, r = createNewEntry( unitName, unitId, OwnerName, nil )
     if newEntry == nil then
-        return nil, r 
+        return r 
     end
-    if grp.playersParty == nil then grp.playersParty = {} end
 
     table.insert( grp.playersParty, newEntry )
-    return newEntry, r
+    return r
 end
 function grp:removePlayer( memberName )
 
-    if grp.playersTable == nil or #grp.playersTable == 0 then
+    if #grp.playersParty == 0 then
         return
     end
 
-    for i, v in (grp.playersParty) do
+    for i, v in ( grp.playersParty ) do
         if v[1] == memberName then
-            -- v[VT_PLAYER_FRAME]:Hide()
             table.remove( grp.playersParty, i )
         end
     end
 end
 function grp:getUnitIdByName( memberName )
+    if #grp.playersParty == 0 then return nil end
+  
     for _, nvp in ipairs( grp.playersParty ) do
         if nvp[1] == memberName then
             return nvp[2]
@@ -251,6 +259,8 @@ function grp:getUnitIdByName( memberName )
     return nil
 end
 function grp:getEntryByName( partyName )
+    if #grp.playersParty == 0 then return nil end
+
     for _, nvp in ipairs( grp.playersParty ) do
         if nvp[1] == partyName then
             return nvp
@@ -268,59 +278,95 @@ function grp:getOwnerByPetName( petName )
     end
     return petOwner
 end
-function grp:updateDamageTaken( memberName, damage )
-    local r = {STATUS_SUCCESS, nil, nil}
-    local damageTaken = 0
+--- DAMAGE TAKEN METRICS
+function grp:setDamageTaken( memberName, damageTaken )
 
     for _, v in ipairs( grp.playersParty ) do
-        if v[VT_UNIT_NAME] == memberName then -- accumulate the damage
-            v[VT_DAMAGE_TAKEN] = v[VT_DAMAGE_TAKEN] + damage
-            damageTaken = v[VT_DAMAGE_TAKEN]
+        if v[VT_UNIT_NAME] == memberName then
+            v[VT_DAMAGE_TAKEN] = damageTaken
+            v[VT_ACCUM_DAMAGE_TAKEN] = v[VT_ACCUM_DAMAGE_TAKEN] + damageTaken
         end
     end
-    return damageTaken
 end
 function grp:getDamageTaken( memberName )
     local damageTaken = 0
+    local accumDamageTaken = 0
+
     for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
             damageTaken = v[VT_DAMAGE_TAKEN]
-            break
+            accumDamageTaken = v[VT_ACCUM_DAMAGE_TAKEN]
+            E:where( sprintf("%s: accum %d\n", memberName, accumDamageTaken ))
+            return damageTaken, accumDamageTaken
         end
     end
-    return damageTaken
+    return damageTaken, accumDamageTaken
 end
-function grp:updateHealingReceived( memberName, healing )
+function grp:resetCombatData()
+    local accumDamageTaken = 0
+    local accumHealingReceived = 0
+    local accumThreatValue = 0    
+
     for _, v in ipairs( grp.playersParty ) do
-        -- if the entry has already been inserted then just return
+        
+        accumThreatValue        = accumThreatValue + v[VT_ACCUM_THREAT_VALUE]
+        accumDamageTaken        = accumDamageTaken + v[VT_ACCUM_DAMAGE_TAKEN]
+        accumHealingReceived    = accumHealingReceived + v[VT_ACCUM_HEALING_RECEIVED]
+
+        v[VT_THREAT_VALUE]           = 0
+        v[VT_ACCUM_THREAT_VALUE]     = 0
+        v[VT_THREAT_VALUE_RATIO]     = 0
+        v[VT_DAMAGE_TAKEN]           = 0
+        v[VT_ACCUM_DAMAGE_TAKEN]     = 0
+        v[VT_HEALING_RECEIVED]       = 0
+        v[VT_ACCUM_HEALING_RECEIVED] = 0        
+    end
+    msg:postMsg( sprintf("Party Summary: Total Threat %d, Total Damage Taken %d\n", accumThreatValue, accumDamageTaken ))
+    return accumThreatValue, accumDamageTaken, accumHealingReceived 
+end
+--- HEALING RECEIVED METRICS
+function grp:setHealingReceived( memberName, healingReceived )
+    for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_HEALING_RECEIVED] = v[VT_HEALING_RECEIVED] + healing
+            v[VT_HEALING_RECEIVED] = healingReceived
+            v[VT_ACCUM_HEALING_RECEIVED] = v[VT_ACCUM_HEALING_RECEIVED] + healingReceived
         end
     end
 end
 function grp:getHealingReceived( memberName )
-    local HealingReceived = 0
+    local healingReceived = 0
+    local accumHealingReceived = 0
+
     for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            HealingReceived = v[VT_HEALING_RECEIVED]
+            healingReceived = v[VT_HEALING_RECEIVED]
+            accumHealingReceived = v[VT_ACCUM_HEALING_RECEIVED]
             break
         end
     end
-    return HealingReceived
+    return healingReceived, accumHealingReceived
 end
-function grp:hidePlayerFrame()
-    -- btn.threatIconStack:Hide()
-end
-function grp:showPlayerFrame()
-    -- btn.threatIconStack:Show()
-end
+--- THREAT METRICS
 function grp:setThreatValue( memberName, threatValue)
     for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_THREAT_VALUE] = 0
             v[VT_THREAT_VALUE] = threatValue
+            v[VT_ACCUM_THREAT_VALUE] = v[VT_ACCUM_THREAT_VALUE] + threatValue
         end
     end
+end
+function grp:getThreatValue( memberName )    
+    local threatValue = 0
+    local accumThreatValue = 0
+
+    for _, v in ipairs( grp.playersParty ) do
+        if v[VT_UNIT_NAME] == memberName then
+            threatValue = v[VT_THREAT_VALUE]
+            accumThreatValue = v[VT_ACCUM_THREAT_VALUE]
+            break
+        end
+    end
+    return threatValue, accumThreatValue
 
 end
 function grp:setThreatValueRatio( memberName, threatValueRatio )
@@ -340,9 +386,50 @@ function grp:getThreatValueRatio( memberName )
     end
     return threatValueRation
 end
-function grp:getPlayersParty()
-    return grp.playersParty
+function grp:getBlizzPartyNames()
+    return GetHomePartyInfo()
 end
+local function congruencyCheck()
+    local r = {STATUS_SUCCESS, nil, nil}
+
+    local blizzPartyCount = grp:getBlizzPartyCount()
+    local blizzPetCount = grp:getBlizzPetCount()
+    local partyCount = grp:getPartyCount()
+    local petCount = grp:getPetCount()
+
+    if blizzPartyCount < 2 then
+        return true, r
+    end
+
+    -- TEST 1:  names in the partyPlayers and blizzParty groups
+    --          match.
+    local partyNames = grp:getAddonPartyNames()
+    local blizzNames = grp:getBlizzPartyNames()
+    for i = 1, blizzPartyCount do
+        if partyNames[i] ~= blizzNames[i] then
+            local st = debugstack()
+            local str = sprintf("%s: %s ~= %s", L["ARG_UNEQUAL_VALUES"], partyNames[i], blizzNames[i])
+            return false, E:setResult( str, st )
+        end
+    end
+
+    -- TEST 2a: Are the pet counts equal
+    if blizzPetCount ~= petCount then 
+        local st = debugstack()
+        local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
+        return false, E:setResult( str, st )
+    end
+    
+    -- TEST 2a: Are player counts equal
+    if #partyNames ~= #blizzNames then 
+        local st = debugstack()
+        local str = sprintf("%s: party %d, blizz %d", L["ARG_UNEQUAL_VALUES"], playersAndPets, blizzAndPets )
+        return false, E:setResult( str, st )
+    end
+
+    return true, r
+end
+
 -- called when PLAYER_ENTERING_WORLD fires
 -- The playersParty is a party that mirrors the blizz
 -- party or group. The partyPlayer members have the same
@@ -350,32 +437,22 @@ end
 function grp:initPlayersParty()
     local r = {STATUS_SUCCESS, nil, nil}
 
-    local blizzPartyCount = grp:getBlizzPartyCount()
-    if blizzPartyCount == 0 then
-        return r
-    end
-    -- The calling player is special and not included among the
-    -- names returned by GetHomePartyInfo(). We need to explicitly
-    -- add it.
-
     grp.playersParty = {}
 
     -- This is always the player doing the inviting, i.e., the party leader. S/He
     -- will not show up in blizzParty table.
     local memberName = UnitName("player")
     local playerId = "player"
-    local playerEntry, r = grp:insertPartyMember(memberName, playerId, nil)
-    if playerEntry == nil then
-        return r 
+    r = grp:insertPartyMember(memberName, playerId, nil)
+    if r[1] ~= STATUS_SUCCESS then
+        return r
     end
+
     local petName = UnitName("pet")
     if petName ~= nil then
-        local petEntry, r = grp:insertPartyMember(petName, "pet", memberName )
-        if petEntry == nil then
-            return r
-        end
+        r = grp:insertPartyMember(petName, "pet", memberName )
     end
-    -- NOTE: the table of names returned by GetHomePartyInfo() does
+    -- NOTE: the table of names returned by grp:getBlizzPartyNames() does
     --          not include pets or the player whose name is given by 
     --          UnitName( "player").
     -- local count = grp:getBlizzPartyCount()
@@ -390,50 +467,22 @@ function grp:initPlayersParty()
         -- get the blizz party member's name.
         local blizzMemberName = UnitName( party[i] )
         if not grp:inPlayersParty( blizzMemberName ) then
-            local newEntry, r = grp:insertPartyMember( blizzMemberName, party[i], nil )
-            if newEntry == nil then
+            r = grp:insertPartyMember( blizzMemberName, party[i], nil )
+            if r[1] ~= STATUS_SUCCESS then
                 return r
             end
         end
-    
         local petName = UnitName( partypet[i])
         if petName ~= nil then
-            local entry, r = grp:insertPartyMember( petName, partypet[i], blizzMemberName  )
-            if entry == nil then
+            r = grp:insertPartyMember( petName, partypet[i], blizzMemberName  )
+            if r[1] ~= STATUS_SUCCESS then
                 return r
             end
         end
-    end        
-    return r
-end
-function grp:congruencyCheck()
-    local blizzPartyCount = grp:getBlizzPartyCount()
-    local blizzPetCount = grp:getBlizzPetCount()
-    local partyCount = grp:getPartyCount()
-    local petCount = grp:getPetCount()
-
-    -- TEST 2: names match
-    local partyNames = grp:getPartyNames()
-    local blizzNames = grp:getBlizzPartyNames()
-    for i = 1, blizzPartyCount do
-        if partyNames[i] ~= blizzNames[i] then
-            local st = debugstack()
-            local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
-            return false, E:setResult( str, st )
-        end
+    end  
+    local successFull, r = congruencyCheck()
+    if not successFull then
+        return r
     end
-
-    -- TEST 1: numbers match
-    -- if blizzPartyCount ~= partyCount then 
-    --     local st = debugstack()
-    --     local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
-    --     return false, E:setResult( str, st )
-    -- end
-    -- if blizzPetCount ~= petCount then 
-    --     local st = debugstack()
-    --     local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
-    --     return false, E:setResult( str, st )
-    -- end
-
-    return true
+    return r
 end

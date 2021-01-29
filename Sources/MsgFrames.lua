@@ -19,6 +19,9 @@ local E = errors
 local DEFAULT_FRAME_WIDTH = 800
 local DEFAULT_FRAME_HEIGHT = 400
 
+local errorFrame = nil
+local msgFrame = nil
+
 --------------------------------------------------------------------------
 --                         CREATE THE VARIOUS BUTTONS
 --------------------------------------------------------------------------
@@ -215,8 +218,34 @@ function msg:createErrorMsgFrame(title)
     f.title:SetPoint("CENTER", f.TitleBg, "CENTER", 5, 0)
     f.title:SetText( title)
     
-    createResizeButton(f)
     createTextDisplay(f)
+
+    createResizeButton(f)
+    createReloadButton(f, "BOTTOMLEFT",f, 5, 5)
+    createSelectButton(f, "BOTTOMRIGHT",f, 5, -10)
+    createClearButton(f, "BOTTOM",f, 5, 5)
+    return f
+end
+local function createPostMsgFrame()
+    local f = createTopFrame( "Messages",errorFrameWidth, errorFrameHight, 0, 0 )
+    f:SetPoint("CENTER", 0, 200)
+    f:SetFrameStrata("BACKGROUND")
+    f:EnableMouse(true)
+    f:EnableMouseWheel(true)
+    f:SetMovable(true)
+    f:Hide()
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+
+    f.title = f:CreateFontString(nil, "OVERLAY")
+    f.title:SetFontObject("GameFontHighlightLarge")
+    f.title:SetPoint("CENTER", f.TitleBg, "CENTER", 5, 0)
+    f.title:SetText( title)
+    
+    createTextDisplay(f)
+
+    createResizeButton(f)
     createReloadButton(f, "BOTTOMLEFT",f, 5, 5)
     createSelectButton(f, "BOTTOMRIGHT",f, 5, -10)
     createClearButton(f, "BOTTOM",f, 5, 5)
@@ -227,6 +256,13 @@ function msg:printErrorMsg( msg )
 end
 function msg:printInfoMsg( msg )
     UIErrorsFrame:AddMessage( msg, 1.0, 1.0, 0.0, nil, 10 ) 
+end
+function msg:postMsg( msg )
+    if msgFrame == nil then
+        msgFrame = createPostMsgFrame()
+    end
+    msgFrame:Show()
+    msgFrame.Text:Insert( msg )
 end
 --  Create the frame where info messages are posted
 function msg:createMsgFrame( title )
@@ -276,11 +312,7 @@ function msg:clearFrameText(f)
 	f.Text:SetText("") 
 	f.Text:ClearFocus()
 end
-
-local errorFrame = nil
 function msg:postResult( result )
-    local st = debugstack()
-
     if errorFrame == nil then
         errorFrame = msg:createErrorMsgFrame("Errors: Visual Threat")
     end
