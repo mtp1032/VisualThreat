@@ -27,22 +27,21 @@ local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
 local VT_PET_OWNER               = grp.VT_PET_OWNER 
 local VT_MOB_ID                  = grp.VT_MOB_ID                  
-local VT_AGGRO_STATUS            = grp.VT_AGGRO_STATUS              
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
 local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
-local VT_PLAYER_FRAME            = grp.VT_PLAYER_FRAME
-local VT_BUTTON                  = grp.VT_BUTTON 
+
+-- Accumulators
+local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
+local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
+local VT_ACCUM_HEALING_RECEIVED     = grp.VT_ACCUM_HEALING_RECEIVED
+local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 local red = "\124cFFFF0000"
 btn.threatIconStack = nil
 
-
-local function highToLow( entry1, entry2)
-  return entry1[VT_THREAT_VALUE_RATIO ] > entry2[VT_THREAT_VALUE_RATIO]
-end
 -- called  by createIconStack()
 local function createEmptyButton(parent)
 
@@ -80,19 +79,20 @@ local function updateButton( entry, button )
     SetPortraitTexture( button.Portrait, unitId )
     button.Name:SetText( playerName )
     
-    local damageTaken = grp:getDamageTaken( playerName )
     local dmgStr = sprintf("Damage taken %d", damageTaken)
     button.Damage:SetText("")
     button.Damage:SetText( dmgStr )
 
-    local str = sprintf( "Threat: "..red.." %d%%", threatRatio)
+    -- local threatStr = sprintf( "Threat: "..red.." %d%%", threatRatio)
+    local threatStr = sprintf( "Threat:  %d%%", threatRatio)
+
     button.Threat:SetText( "" )
-    button.Threat:SetText( str )
+    button.Threat:SetText( threatStr )
 end
 function btn:createIconStack()
 
     -- PARTY STUFF
-    if grp.playersParty == nil then
+    if #grp.playersParty == 0 then
       return
     end
 
@@ -158,24 +158,34 @@ end
 -- called from ThreatEventHandler
 function btn:updatePortraitButtons()
 
-    for _, entry in ipairs( grp.playersParty ) do        
-      local button = entry[VT_BUTTON]
-      if button ~= nil then
-          updateButton( entry, button )
-      end
+  if #grp.playersParty == 0 then
+    return
+  end
+
+  for _, entry in ipairs( grp.playersParty ) do        
+    local button = entry[VT_BUTTON]
+    if button ~= nil then
+        updateButton( entry, button )
     end
+  end
+end
+
+local function highToLow( entry1, entry2)
+  return entry1[VT_THREAT_VALUE_RATIO ] > entry2[VT_THREAT_VALUE_RATIO]
+end
+function btn:sortThreatStack()
 
     -- sort the grp.playersParty and then copy the sorted
     -- table into the f.portraitButtons table.
-    table.sort( grp.playersParty, highToLow )
+  table.sort( grp.playersParty, highToLow )
 
-    for i, entry in ipairs( grp.playersParty ) do
-        local button = entry[VT_BUTTON]
-        if button ~= nil then
-          button:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
-        end
+  for i, entry in ipairs( grp.playersParty ) do
+    local button = entry[VT_BUTTON]
+    if button ~= nil then
+      button:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
     end
-    return f
+  end
+  return f
 end
 
 
