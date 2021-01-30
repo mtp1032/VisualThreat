@@ -15,10 +15,36 @@ Visual Threat is a World of Warcraft Addon that presents a VERY simple visual di
 
 The stack also includes an icon for each pet in the party. So, in a party of 5 with a warlock and a hunter, each with a pet summoned, the threat stack will be composed of 7 icons.
 
-How good is your tank?
+PARTY LEGEND:
+PT: Player Tank
+P1: Player with unitId party1
+P2: Player with unitId party2
+P3: Player with unitId party3
+P4: Player with unitId party4
+Pn: The Nth player of the party.
 
-                       (DamageTakenByTank - Sum( damageTakenByOtherGroupMembers))
-Group Performance =  K ------------------------------------------------------------
-                                   Healing Received by tank)
+NOTE: VisualThreat treats pets no differently that players. Thus, a Blizzard 5 player party with 
+4 members having pets would have a total of 9 players (PT, P1, P2, ... P8).
 
+(dt): Damage Taken
+(dd): Damage Done
+(hr): Healing Received.
+(th): Threat
+
+This formula proposes that a party's performance is increased to the extent the tank is able
+to soak up damage that would otherwise be taken by the other members of the party. However,
+this metric is conditioned by the amount of work the healer has to do. The more healing necessary
+to keep the tank (and the group) alive, the lower will be the group's efficiency
+
+                    PT(dt) - Sum( P1(dt) + ... + Pn(dt)
+DAMAGE TAKEN =  K ---------------------------------------
+                                PT(hr)
+
+                     PT(dd))  -  SUM(P1(dd)...Pn(dd))
+DAMAGE DONE =   K -------------------------------
+                     SUM(P1(hr)) + ... + Pn(hr)
+
+                    (PT(th) - SUM( P1(th) + ... + Pn(th) )
+THREAT      =   K --------------------------------------
+                          SUM(P1(dt)...Pn(dt))
 

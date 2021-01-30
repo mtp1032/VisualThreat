@@ -28,13 +28,16 @@ ceh.IN_COMBAT = true
 
 function ceh:handleEvent( stats )
     local targetName = stats[TARGETNAME]
+    local sourceName = stats[SOURCENAME]
     local subEvent = stats[SUBEVENT]
 
     -- this filters out all combat events EXCEPT those
-    -- in which the target is one of our members.
-    if not grp:inPlayersParty( targetName ) then return end
+    -- in which the target OR source is one of our members.
+    if grp:inPlayersParty( sourceName ) ~= true and
+       grp:inPlayersParty( targetName ) ~= true then
+        return
+    end
 
-     
     if  subEvent ~= "SPELL_HEAL" and
         subEvent ~= "SPELL_PERIODIC_HEAL" and 
         subEvent ~= "SPELL_SUMMON" and
@@ -44,21 +47,26 @@ function ceh:handleEvent( stats )
         subEvent ~= "RANGE_DAMAGE" then
             return
     end
-    -------------- DAMAGE TAKEN ---------------
+    -------------- DAMAGE TAKEN AND DAMAGE DONE ---------------
     if  subEvent == "SWING_DAMAGE" or
         subEvent == "SPELL_DAMAGE" or
         subEvent == "SPELL_PERIODIC_DAMAGE" or
         subEvent == "RANGE_DAMAGE" then
         
-        local amountDamaged = 0
+        local damage = 0
         if subEvent == "SWING_DAMAGE" then
-            amountDamaged = stats[12]
+            damage = stats[12]
         else
-            amountDamaged = stats[15]
+            damage = stats[15]
         end
-        grp:setDamageTaken( targetName, amountDamaged )
-        -- local damageTaken, accumDamage = grp:getDamageTaken( targetName )
-        -- msg:postMsg( sprintf("%s: DMG Taken: %d, ACCUM: %d\n", targetName, damageTaken, accumDamage ))
+        if grp:inPlayersParty( targetName ) then
+            -- E:where( sourceName.." hits "..targetName.." for "..tostring(damage ).." damage.")
+            grp:setDamageTaken( targetName, damage )
+        end
+        if grp:inPlayersParty( sourceName ) then
+            -- E:where( sourceName.." hits "..targetName.." for "..tostring(damage ).." damage.")
+            grp:setDamageDone( sourceName, damage )
+        end
     end
     ------------- HEALING RECEIVED --------------------
     if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then

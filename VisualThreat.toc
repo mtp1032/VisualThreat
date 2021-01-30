@@ -21,6 +21,7 @@ Sources\Buttons.lua
 Sources\CombatEventHandler.lua
 Sources\ThreatEventHandler.lua
 Sources\EventDispatcher.lua
+Sources\Metrics.lua
 ##--------------------------------------------
 ## UNIT UnitTests
 ##--------------------------------------------

@@ -73,8 +73,8 @@ local function updateButton( entry, button )
     local unitId          = entry[VT_UNIT_ID]
     local playerName      = entry[VT_UNIT_NAME]
     local threatRatio     = entry[VT_THREAT_VALUE_RATIO]*100
-    local damageTaken     = entry[VT_DAMAGE_TAKEN]
-    local HealingReceived = entry[VT_HEALING_RECEIVED]
+    local damageTaken     = entry[VT_ACCUM_DAMAGE_TAKEN]
+    local HealingReceived = entry[VT_ACCUM_HEALING_RECEIVED]
 
     SetPortraitTexture( button.Portrait, unitId )
     button.Name:SetText( playerName )
@@ -127,7 +127,7 @@ function btn:createIconStack()
       f.portraitButtons[i]:SetScript("OnClick", function(self)
           local playerName = self.Name:GetText()
 
-          local dmg = grp:getDamageTaken( playerName )
+          local accumDmgTaken = grp:getDamageStats( playerName )
           local status = UnitThreatSituation( entry[VT_UNIT_ID], targetId )
         
           local r = 0 g = 0 b = 0
@@ -145,7 +145,7 @@ function btn:createIconStack()
           end
 
           -- local r, g, b = GetThreatStatusColor(status)
-          local dmgTxt = sprintf("Cumulative damage taken by %s: %d", playerName, dmg)
+          local dmgTxt = sprintf("Cumulative damage taken by %s: %d", playerName, accumDmgTaken)
           DEFAULT_CHAT_FRAME:AddMessage( dmgTxt, r, g, b )
         end
       end)

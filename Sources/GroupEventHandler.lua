@@ -27,13 +27,11 @@ grp.VT_THREAT_VALUE         = 5
 grp.VT_ACCUM_THREAT_VALUE   = 6
 grp.VT_THREAT_VALUE_RATIO   = 7
 
-grp.VT_DAMAGE_TAKEN         = 8
-grp.VT_ACCUM_DAMAGE_TAKEN   = 9
+grp.VT_ACCUM_DAMAGE_TAKEN   = 8
+grp.VT_ACCUM_DAMAGE_DONE    = 9
+grp.VT_ACCUM_HEALING_RECEIVED  = 10
 
-grp.VT_HEALING_RECEIVED     = 10
-grp.VT_ACCUM_HEALING_RECEIVED  = 11
-
-grp.VT_BUTTON               = 12
+grp.VT_BUTTON               = 11
 grp.VT_NUM_ELEMENTS         = grp.VT_BUTTON
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
@@ -42,13 +40,12 @@ local VT_PET_OWNER               = grp.VT_PET_OWNER
 local VT_MOB_ID                  = grp.VT_MOB_ID                  
 local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
-local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
-local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
 
 -- Accumulators
 local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
-local VT_ACCUM_HEALING_RECEIVED     = grp.VT_ACCUM_HEALING_RECEIVED
+local VT_ACCUM_DAMAGE_DONE       = grp.VT_ACCUM_DAMAGE_DONE
+local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
@@ -58,6 +55,32 @@ local party     = {"party1",    "party2",    "party3",    "party4" }
 grp.playersParty = {}
 
 ---------------------------------------------+
+local function createNewEntry( unitName, unitId, ownerName, mobId )
+    local r = {STATUS_SUCCESS, nil, nil}
+
+    if unitName == nil then
+        local st = debugstack()
+        local str = sprintf("%s: %s", L["ARG_NIL"], "unitName" )
+        return nil, E:setResult( str, st )
+    end
+    if unitId == nil then
+        local st = debugstack()
+        local str = sprintf("%s: %s", "unitId", L["ARG_NIL"] )
+        return nil, E:setResult( str, st )
+    end
+
+    local newEntry = {nil, nil, nil, nil, 0, 0, 0, 0, 0, nil, ""}
+    
+    newEntry[VT_UNIT_NAME] = unitName
+    newEntry[VT_UNIT_ID] = unitId
+    if ownerName ~= nil then
+        newEntry[VT_PET_OWNER] = ownerName
+	end
+	if mobId ~= nil then
+        newEntry[VT_MOB_ID] = mobId
+    end
+	return newEntry, r
+end 
 function grp:getAddonPartyNames()
     if #grp.playersParty == 0 then return nil end
 
@@ -85,32 +108,6 @@ function grp:printPartyEntry( nvp )
                                         nvp[VT_UNIT_ID] ))
     end
 end
-local function createNewEntry( unitName, unitId, ownerName, mobId )
-    local r = {STATUS_SUCCESS, nil, nil}
-
-    if unitName == nil then
-        local st = debugstack()
-        local str = sprintf("%s: %s", L["ARG_NIL"], "unitName" )
-        return nil, E:setResult( str, st )
-    end
-    if unitId == nil then
-        local st = debugstack()
-        local str = sprintf("%s: %s", "unitId", L["ARG_NIL"] )
-        return nil, E:setResult( str, st )
-    end
-
-    local newEntry = {nil, nil, nil, nil, 0, 0, 0, 0, 0, nil, ""}
-    
-    newEntry[VT_UNIT_NAME] = unitName
-    newEntry[VT_UNIT_ID] = unitId
-    if ownerName ~= nil then
-        newEntry[VT_PET_OWNER] = ownerName
-	end
-	if mobId ~= nil then
-        newEntry[VT_MOB_ID] = mobId
-    end
-	return newEntry, r
-end 
 function grp:inPlayersParty( memberName )
     local isMember = false
     if #grp.playersParty == 0 then
@@ -130,10 +127,13 @@ function grp:getPlayerNames()
     end
     return playerNames
 end
+-- function GetHomePartyInfo()
+--     return GetHomePartyInfo()
+-- end
 function grp:inBlizzParty( memberName )
     local isBlizzMember = false
     
-    local blizzNames = grp:getBlizzPartyNames()
+    local blizzNames = GetHomePartyInfo()
     if blizzNames == nil then return isBlizzMember end
 
     local count = #blizzNames
@@ -151,7 +151,7 @@ function grp:blizzPartyExists()
     local count = 0
 
     -- if no party exists then return false
-    local blizzNames = grp:getBlizzPartyNames()
+    local blizzNames = GetHomePartyInfo()
     if blizzNames ~= nil then
         partyExists = true
         count = #blizzNames
@@ -162,7 +162,7 @@ end
 -- Does not count the party leader or any pets.
 function grp:getBlizzPartyCount()
     local blizzMemberCount = 0
-    local blizzNames = grp:getBlizzPartyNames()
+    local blizzNames = GetHomePartyInfo()
     if blizzNames == nil then 
         return blizzMemberCount
     end
@@ -170,7 +170,7 @@ function grp:getBlizzPartyCount()
 end
 function grp:getBlizzPetCount()
     local blizzPetCount = 0
-    local blizzNames = grp:getBlizzPartyNames()
+    local blizzNames = GetHomePartyInfo()
     if blizzNames == nil then 
         return blizzPetCount
     end
@@ -278,51 +278,36 @@ function grp:getOwnerByPetName( petName )
     end
     return petOwner
 end
---- DAMAGE TAKEN METRICS
+--- DAMAGE METRICS
 function grp:setDamageTaken( memberName, damageTaken )
 
     for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_DAMAGE_TAKEN] = damageTaken
             v[VT_ACCUM_DAMAGE_TAKEN] = v[VT_ACCUM_DAMAGE_TAKEN] + damageTaken
         end
     end
 end
-function grp:getDamageTaken( memberName )
-    local damageTaken = 0
+function grp:setDamageDone( memberName, damageDone )
+    for _, v in ipairs( grp.playersParty ) do
+
+        if v[VT_UNIT_NAME] == memberName then
+            v[VT_ACCUM_DAMAGE_DONE] = v[VT_ACCUM_DAMAGE_DONE] + damageDone
+        end
+    end
+    E:where()
+end
+function grp:getDamageStats( memberName )
+    local accumDamageDone = 0
     local accumDamageTaken = 0
 
     for _, v in ipairs( grp.playersParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            damageTaken = v[VT_DAMAGE_TAKEN]
             accumDamageTaken = v[VT_ACCUM_DAMAGE_TAKEN]
-            E:where( sprintf("%s: accum %d\n", memberName, accumDamageTaken ))
-            return damageTaken, accumDamageTaken
+            accumDamageDone = v[VT_ACCUM_DAMAGE_DONE]
+            return accumDamageTaken, accumDamageDone
         end
     end
-    return damageTaken, accumDamageTaken
-end
-function grp:resetCombatData()
-    local accumDamageTaken = 0
-    local accumHealingReceived = 0
-    local accumThreatValue = 0    
-
-    for _, v in ipairs( grp.playersParty ) do
-        
-        accumThreatValue        = accumThreatValue + v[VT_ACCUM_THREAT_VALUE]
-        accumDamageTaken        = accumDamageTaken + v[VT_ACCUM_DAMAGE_TAKEN]
-        accumHealingReceived    = accumHealingReceived + v[VT_ACCUM_HEALING_RECEIVED]
-
-        v[VT_THREAT_VALUE]           = 0
-        v[VT_ACCUM_THREAT_VALUE]     = 0
-        v[VT_THREAT_VALUE_RATIO]     = 0
-        v[VT_DAMAGE_TAKEN]           = 0
-        v[VT_ACCUM_DAMAGE_TAKEN]     = 0
-        v[VT_HEALING_RECEIVED]       = 0
-        v[VT_ACCUM_HEALING_RECEIVED] = 0        
-    end
-    msg:postMsg( sprintf("Party Summary: Total Threat %d, Total Damage Taken %d\n", accumThreatValue, accumDamageTaken ))
-    return accumThreatValue, accumDamageTaken, accumHealingReceived 
+    return accumDamageTaken, accumDamageDone
 end
 --- HEALING RECEIVED METRICS
 function grp:setHealingReceived( memberName, healingReceived )
@@ -333,7 +318,7 @@ function grp:setHealingReceived( memberName, healingReceived )
         end
     end
 end
-function grp:getHealingReceived( memberName )
+function grp:getHealingStats( memberName )
     local healingReceived = 0
     local accumHealingReceived = 0
 
@@ -355,7 +340,7 @@ function grp:setThreatValue( memberName, threatValue)
         end
     end
 end
-function grp:getThreatValue( memberName )    
+function grp:getThreatValues( memberName )    
     local threatValue = 0
     local accumThreatValue = 0
 
@@ -386,9 +371,19 @@ function grp:getThreatValueRatio( memberName )
     end
     return threatValueRation
 end
-function grp:getBlizzPartyNames()
-    return GetHomePartyInfo()
+function grp:resetCombatStats()
+    for _, v in ipairs( grp.playersParty ) do
+        v[VT_THREAT_VALUE]            = 0             
+        v[VT_THREAT_VALUE_RATIO]      = 0
+        
+        -- Accumulators
+        v[VT_ACCUM_THREAT_VALUE]      = 0
+        v[VT_ACCUM_DAMAGE_TAKEN]      = 0
+        v[VT_ACCUM_DAMAGE_DONE]       = 0
+        v[VT_ACCUM_HEALING_RECEIVED]  = 0
+    end
 end
+
 local function congruencyCheck()
     local r = {STATUS_SUCCESS, nil, nil}
 
@@ -404,7 +399,7 @@ local function congruencyCheck()
     -- TEST 1:  names in the partyPlayers and blizzParty groups
     --          match.
     local partyNames = grp:getAddonPartyNames()
-    local blizzNames = grp:getBlizzPartyNames()
+    local blizzNames = GetHomePartyInfo()
     for i = 1, blizzPartyCount do
         if partyNames[i] ~= blizzNames[i] then
             local st = debugstack()
@@ -429,7 +424,6 @@ local function congruencyCheck()
 
     return true, r
 end
-
 -- called when PLAYER_ENTERING_WORLD fires
 -- The playersParty is a party that mirrors the blizz
 -- party or group. The partyPlayer members have the same
@@ -452,7 +446,7 @@ function grp:initPlayersParty()
     if petName ~= nil then
         r = grp:insertPartyMember(petName, "pet", memberName )
     end
-    -- NOTE: the table of names returned by grp:getBlizzPartyNames() does
+    -- NOTE: the table of names returned by GetHomePartyInfo() does
     --          not include pets or the player whose name is given by 
     --          UnitName( "player").
     -- local count = grp:getBlizzPartyCount()
