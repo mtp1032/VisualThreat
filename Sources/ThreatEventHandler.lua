@@ -40,23 +40,15 @@ function tev:updateThreatStatus( mobId )
     end
     -- Sum the threat values as we loop through and update each party member's entry
     local sumThreatValue = 0
-    for _, entry in ipairs( grp.playersParty ) do
+    for _, entry in ipairs( grp.addonParty ) do
         local _, _, _, _, threatValue = UnitDetailedThreatSituation( entry[VT_UNIT_ID], mobId )
         if threatValue == nil then 
             threatValue = 0 
         end
 
         if threatValue > 0 then
-            grp:setThreatValue( entry[VT_UNIT_NAME], threatValue )
-            sumThreatValue = sumThreatValue + threatValue
+            grp:setThreatValues( entry[VT_UNIT_NAME], threatValue )
         end
     end
-
-    if sumThreatValue > 0 then
-        for _, entry in ipairs( grp.playersParty ) do
-            local threatValueRatio = entry[VT_THREAT_VALUE]/sumThreatValue
-            grp:setThreatValueRatio( entry[VT_UNIT_NAME], threatValueRatio )
-        end
-    end  
     btn:updatePortraitButtons()
 end

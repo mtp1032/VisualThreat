@@ -20,8 +20,8 @@ Sources\GroupEventHandler.lua
 Sources\Buttons.lua
 Sources\CombatEventHandler.lua
 Sources\ThreatEventHandler.lua
-Sources\EventDispatcher.lua
 Sources\Metrics.lua
+Sources\EventDispatcher.lua
 ##--------------------------------------------
 ## UNIT UnitTests
 ##--------------------------------------------

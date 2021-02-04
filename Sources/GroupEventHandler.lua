@@ -23,22 +23,20 @@ grp.VT_UNIT_NAME            = 1
 grp.VT_UNIT_ID              = 2 
 grp.VT_PET_OWNER            = 3
 grp.VT_MOB_ID               = 4  
-grp.VT_THREAT_VALUE         = 5     
-grp.VT_ACCUM_THREAT_VALUE   = 6
-grp.VT_THREAT_VALUE_RATIO   = 7
+grp.VT_ACCUM_THREAT_VALUE   = 5
+grp.VT_THREAT_VALUE_RATIO   = 6
 
-grp.VT_ACCUM_DAMAGE_TAKEN   = 8
-grp.VT_ACCUM_DAMAGE_DONE    = 9
-grp.VT_ACCUM_HEALING_RECEIVED  = 10
+grp.VT_ACCUM_DAMAGE_TAKEN   = 7
+grp.VT_ACCUM_DAMAGE_DONE    = 8
+grp.VT_ACCUM_HEALING_RECEIVED  = 9
 
-grp.VT_BUTTON               = 11
+grp.VT_BUTTON               = 10
 grp.VT_NUM_ELEMENTS         = grp.VT_BUTTON
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
 local VT_PET_OWNER               = grp.VT_PET_OWNER 
 local VT_MOB_ID                  = grp.VT_MOB_ID                  
-local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
 local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 
 -- Accumulators
@@ -49,83 +47,96 @@ local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
+-- Indices into the stats table
+grp.SUM_THREAT_VALUE    = 1
+grp.SUM_DAMAGE_TAKEN    = 2
+grp.SUM_HEALS_RECEIVED  = 3
+grp.SUM_DAMAGE_DONE     = 4
+
+local SUM_THREAT_VALUE      = grp.SUM_THREAT_VALUE
+local SUM_DAMAGE_TAKEN      = grp.SUM_DAMAGE_TAKEN
+local SUM_HEALS_RECEIVED    = grp.SUM_HEALS_RECEIVED
+local SUM_DAMAGE_DONE       = grp.SUM_DAMAGE_DONE
+
+grp.statsTable = {0, 0, 0, 0}
+
+function grp:resetGlobals()
+    grp.statsTable = {0, 0, 0, 0}
+end
+
+local _EMPTY = ""
+local _defaultEntry = { _EMPTY, _EMPTY, nil, nil,0,0,0,0,0,_EMPTY}
+
 local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
 local party     = {"party1",    "party2",    "party3",    "party4" }
 
-grp.playersParty = {}
+-- NOTE: The differences between the addonParty and the blizzard party
+-- are: (1) the addonParty contains an entry for the player whose unitId
+-- is "player"; (2) the addonParty contains an entry for each pet. The
+-- blizzard party contains no entry for the pet. Thus, the addonParty can
+-- contain up to 10 members if each of the [maximum of] 5 members has a pet.
+grp.addonParty = {}
 
 ---------------------------------------------+
-local function createNewEntry( unitName, unitId, ownerName, mobId )
+local function initializePartyEntry( unitName, unitId, petOwner, mobId )
     local r = {STATUS_SUCCESS, nil, nil}
 
-    if unitName == nil then
-        local st = debugstack()
-        local str = sprintf("%s: %s", L["ARG_NIL"], "unitName" )
-        return nil, E:setResult( str, st )
-    end
-    if unitId == nil then
-        local st = debugstack()
-        local str = sprintf("%s: %s", "unitId", L["ARG_NIL"] )
-        return nil, E:setResult( str, st )
+    -- if unitId == "" then 
+    --     return nil, E:setResult(sprintf("%s's unitId is nil!\n", unitName), debugstack() ) 
+    -- end
+
+    local newEntry = { unitName, unitId, petOwner, mobId, 0,0,0,0,0,_EMPTY }
+    return newEntry, r
+end
+function grp:insertPartyEntry( unitName, unitId, OwnerName, mobId )    
+    local r = {STATUS_SUCCESS, nil, nil }
+
+    if grp:inPlayersParty( unitName ) then 
+        return r 
     end
 
-    local newEntry = {nil, nil, nil, nil, 0, 0, 0, 0, 0, nil, ""}
-    
-    newEntry[VT_UNIT_NAME] = unitName
-    newEntry[VT_UNIT_ID] = unitId
-    if ownerName ~= nil then
-        newEntry[VT_PET_OWNER] = ownerName
-	end
-	if mobId ~= nil then
-        newEntry[VT_MOB_ID] = mobId
+    local newEntry, r = initializePartyEntry( unitName, unitId, OwnerName, mobId )
+    if newEntry == nil then
+        return r 
     end
-	return newEntry, r
-end 
+
+    table.insert( grp.addonParty, newEntry )
+    return r
+end
+function grp:printPartyEntry( entry )
+    if entry[VT_PET_OWNER] ~= nil then
+        msg:postMsg( sprintf("Unit Name = %s, UnitId = %s, Owner's Name = %s\n", 
+                                        entry[VT_UNIT_NAME], 
+                                        entry[VT_UNIT_ID], 
+                                        entry[VT_PET_OWNER]))
+    else
+        msg:postMsg( sprintf("Unit Name = %s, unitId = %s\n",  
+                                        entry[VT_UNIT_NAME], 
+                                        entry[VT_UNIT_ID] ))
+    end
+end
+-- returns a table identical to that of the blizz party, i.e.,
+-- NO PET nor the "player"
 function grp:getAddonPartyNames()
-    if #grp.playersParty == 0 then return nil end
+    if #grp.addonParty == 0 then return nil end
 
     local partyNames = {}
-    local i = 1
-    for _, v in ipairs( grp.playersParty ) do
-        if v[VT_UNIT_NAME] ~= UnitName("player") then
-            if v[VT_PET_OWNER] == nil then 
-                partyNames[i] = v[VT_UNIT_NAME]
-                i = i + 1
-            end
-        end
+    for i, v in ipairs( grp.addonParty ) do
+        partyNames[i] = v[VT_UNIT_NAME]
     end
     return partyNames
 end
-function grp:printPartyEntry( nvp )
-    if nvp[VT_PET_OWNER] ~= nil then
-        msg:post( sprintf("Unit Name = %s, UnitId = %s, Owner's Name = %s\n", 
-                                        nvp[VT_UNIT_NAME], 
-                                        nvp[VT_UNIT_ID], 
-                                        nvp[VT_PET_OWNER]))
-    else
-        msg:post( sprintf("Unit Name = %s, unitId = %s\n",  
-                                        nvp[VT_UNIT_NAME], 
-                                        nvp[VT_UNIT_ID] ))
-    end
-end
 function grp:inPlayersParty( memberName )
     local isMember = false
-    if #grp.playersParty == 0 then
+    if #grp.addonParty == 0 then
         return isMember
     end
-    for _, v in ipairs( grp.playersParty ) do
-        if v[1] == memberName then
+    for _, v in ipairs( grp.addonParty ) do
+        if v[VT_UNIT_NAME] == memberName then
             isMember = true
         end
     end
     return isMember
-end
-function grp:getPlayerNames()
-    local playerNames = {}
-    for i, v in ipairs( grp.playersParty ) do
-        playerNames[i] = v[VT_UNIT_NAME]
-    end
-    return playerNames
 end
 -- function GetHomePartyInfo()
 --     return GetHomePartyInfo()
@@ -138,7 +149,7 @@ function grp:inBlizzParty( memberName )
 
     local count = #blizzNames
     for i = 1, count do
-        for _, v in ipairs( grp.playersParty ) do
+        for _, v in ipairs( grp.addonParty ) do
             if blizzNames[i] == v[VT_UNIT_NAME] then
                 isBlizzMember = true
             end
@@ -188,30 +199,29 @@ function grp:getBlizzPetCount()
 end
 -- returns a count of the number of playerParty members. Does not
 -- include pets (use getPetCount())
-function grp:getPartyCount()
-    local partyCount = 0
+function grp:getPlayerCount()
+    local playerCount = 0
     local name = nil
-    if #grp.playersParty == 0 then
-        return partyCount
+    if #grp.addonParty == 0 then
+        return playerCount
     end
 
-    for i, v in ipairs( grp.playersParty ) do
+    for i, v in ipairs( grp.addonParty ) do
         -- If the VT_PET_OWNER field contains a name
         -- this entry is a pet, not a player.
         if v[VT_PET_OWNER] == nil then 
-            name = v[1]
-            partyCount = partyCount + 1
+            playerCount = playerCount + 1
         end
     end
-    return partyCount
+    return playerCount
 end
 function grp:getPetCount()
     local petCount = 0
-    if #grp.playersParty == 0 then
+    if #grp.addonParty == 0 then
         return petCount
     end
 
-    for i, v in ipairs( grp.playersParty ) do
+    for i, v in ipairs( grp.addonParty ) do
         -- If the VT_PET_OWNER field contains a name
         -- i.e., is non-nil, then this entry is a pet, 
         -- not a player.
@@ -221,86 +231,82 @@ function grp:getPetCount()
     end
     return petCount
 end
-function grp:insertPartyMember( unitName, unitId, OwnerName )    
-    local r = {STATUS_SUCCESS, nil, nil }
+function grp:removeMember( memberName )
 
-    if grp:inPlayersParty( unitName ) then 
-        return r 
-    end
-
-    local newEntry, r = createNewEntry( unitName, unitId, OwnerName, nil )
-    if newEntry == nil then
-        return r 
-    end
-
-    table.insert( grp.playersParty, newEntry )
-    return r
-end
-function grp:removePlayer( memberName )
-
-    if #grp.playersParty == 0 then
+    if #grp.addonParty == 0 then
         return
     end
 
-    for i, v in ( grp.playersParty ) do
-        if v[1] == memberName then
-            table.remove( grp.playersParty, i )
+    for i, v in ipairs( grp.addonParty ) do
+        if v[VT_UNIT_NAME] == memberName then
+            table.remove( grp.addonParty, i )
         end
     end
 end
 function grp:getUnitIdByName( memberName )
-    if #grp.playersParty == 0 then return nil end
+    if #grp.addonParty == 0 then return nil end
   
-    for _, nvp in ipairs( grp.playersParty ) do
-        if nvp[1] == memberName then
-            return nvp[2]
+    for _, entry in ipairs( grp.addonParty ) do
+        if entry[VT_UNIT_NAME] == memberName then
+            return entry[2]
         end
     end
     return nil
 end
-function grp:getEntryByName( partyName )
-    if #grp.playersParty == 0 then return nil end
+function grp:getEntryByName( memberName )
+    if #grp.addonParty == 0 then return nil end
 
-    for _, nvp in ipairs( grp.playersParty ) do
-        if nvp[1] == partyName then
-            return nvp
+    for _, entry in ipairs( grp.addonParty ) do
+        if entry[VT_UNIT_NAME] == memberName then
+            return entry
         end
     end
     return nil
 end
 function grp:getOwnerByPetName( petName )
-    local petOwner = nil 
-    for _, v in ipairs( grp.playersParty ) do
+    for _, v in ipairs( grp.addonParty ) do
         if v[VT_UNIT_NAME] == petName then
-            petOwner = v[VT_PET_OWNER]
-            break
+            return v[VT_PET_OWNER]
         end
     end
-    return petOwner
+    return nil
 end
---- DAMAGE METRICS
+function grp:getPetByOwnerName( memberName )
+    local petName = nil
+    for _, v in ipairs( grp.addonParty ) do
+        if v[VT_PET_OWNER] == memberName then
+            return v[VT_UNIT_NAME]
+        end
+    end
+    return petName
+end
+------------- DAMAGE METRICS ---------------------------
 function grp:setDamageTaken( memberName, damageTaken )
 
-    for _, v in ipairs( grp.playersParty ) do
+    grp.statsTable[SUM_DAMAGE_TAKEN] = grp.statsTable[SUM_DAMAGE_TAKEN] + damageTaken
+
+    for _, v in ipairs( grp.addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
             v[VT_ACCUM_DAMAGE_TAKEN] = v[VT_ACCUM_DAMAGE_TAKEN] + damageTaken
         end
     end
 end
 function grp:setDamageDone( memberName, damageDone )
-    for _, v in ipairs( grp.playersParty ) do
+
+    grp.statsTable[SUM_DAMAGE_DONE] = grp.statsTable[SUM_DAMAGE_DONE] + damageDone
+
+    for _, v in ipairs( grp.addonParty ) do
 
         if v[VT_UNIT_NAME] == memberName then
             v[VT_ACCUM_DAMAGE_DONE] = v[VT_ACCUM_DAMAGE_DONE] + damageDone
         end
     end
-    E:where()
 end
 function grp:getDamageStats( memberName )
     local accumDamageDone = 0
     local accumDamageTaken = 0
 
-    for _, v in ipairs( grp.playersParty ) do
+    for _, v in ipairs( grp.addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
             accumDamageTaken = v[VT_ACCUM_DAMAGE_TAKEN]
             accumDamageDone = v[VT_ACCUM_DAMAGE_DONE]
@@ -309,71 +315,67 @@ function grp:getDamageStats( memberName )
     end
     return accumDamageTaken, accumDamageDone
 end
---- HEALING RECEIVED METRICS
+------------- HEALING RECEIVED METRICS ---------------------
 function grp:setHealingReceived( memberName, healingReceived )
-    for _, v in ipairs( grp.playersParty ) do
+    local accumHealing = 0
+    
+    grp.statsTable[SUM_HEALS_RECEIVED] = grp.statsTable[SUM_HEALS_RECEIVED] + healingReceived
+
+    for _, v in ipairs( grp.addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_HEALING_RECEIVED] = healingReceived
             v[VT_ACCUM_HEALING_RECEIVED] = v[VT_ACCUM_HEALING_RECEIVED] + healingReceived
+            accumHealing = v[VT_ACCUM_HEALING_RECEIVED]
         end
     end
+    -- if healingReceived > 0 then
+    --     local dbgMsg = sprintf("%s was healed for %d hit points and %d total healing.\n", memberName, healingReceived, accumHealing)
+    --     msg:postMsg( dbgMsg )
+    -- end
 end
 function grp:getHealingStats( memberName )
     local healingReceived = 0
     local accumHealingReceived = 0
 
-    for _, v in ipairs( grp.playersParty ) do
+    for _, v in ipairs( grp.addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            healingReceived = v[VT_HEALING_RECEIVED]
             accumHealingReceived = v[VT_ACCUM_HEALING_RECEIVED]
             break
         end
     end
-    return healingReceived, accumHealingReceived
+    return accumHealingReceived -- MODIFIED
 end
---- THREAT METRICS
-function grp:setThreatValue( memberName, threatValue)
-    for _, v in ipairs( grp.playersParty ) do
+---------------- THREAT METRICS -----------------------------
+function grp:setThreatValues( memberName, threatValue)
+
+    grp.statsTable[SUM_THREAT_VALUE] = grp.statsTable[SUM_THREAT_VALUE] + threatValue
+
+    for _, v in ipairs( grp.addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            v[VT_THREAT_VALUE] = threatValue
             v[VT_ACCUM_THREAT_VALUE] = v[VT_ACCUM_THREAT_VALUE] + threatValue
         end
     end
 end
-function grp:getThreatValues( memberName )    
-    local threatValue = 0
-    local accumThreatValue = 0
-
-    for _, v in ipairs( grp.playersParty ) do
-        if v[VT_UNIT_NAME] == memberName then
-            threatValue = v[VT_THREAT_VALUE]
-            accumThreatValue = v[VT_ACCUM_THREAT_VALUE]
-            break
-        end
-    end
-    return threatValue, accumThreatValue
-
-end
-function grp:setThreatValueRatio( memberName, threatValueRatio )
-    for _, v in ipairs( grp.playersParty ) do
-        if v[VT_UNIT_NAME] == memberName then
-            v[VT_THREAT_VALUE_RATIO] = threatValueRatio
-        end
-    end
-end
-function grp:getThreatValueRatio( memberName )
+function grp:getThreatStats( memberName )    
+    local accumMemberThreat = 0
     local threatValueRatio = 0
-    for _, v in ipairs( grp.playersParty ) do
+
+    for _, v in ipairs( grp.addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
-            threatValueRatio = v[VT_THREAT_VALUE_RATIO]
-            break
+            accumMemberThreat = v[VT_ACCUM_THREAT_VALUE]
         end
     end
-    return threatValueRation
+
+    if grp.statsTable[SUM_THREAT_VALUE] > 0 then
+        threatValueRatio = accumMemberThreat / grp.statsTable[SUM_THREAT_VALUE]
+    end
+    return accumMemberThreat, threatValueRatio
+end
+function grp:getStatsTable()
+    return grp.statsTable[SUM_THREAT_VALUE], grp.statsTable[SUM_DAMAGE_TAKEN], grp.statsTable[SUM_HEALS_RECEIVED], grp.statsTable[SUM_DAMAGE_DONE]
 end
 function grp:resetCombatStats()
-    for _, v in ipairs( grp.playersParty ) do
-        v[VT_THREAT_VALUE]            = 0             
+    grp.statsTable = {0,0,0,0}
+    for _, v in ipairs( grp.addonParty ) do
         v[VT_THREAT_VALUE_RATIO]      = 0
         
         -- Accumulators
@@ -384,99 +386,56 @@ function grp:resetCombatStats()
     end
 end
 
-local function congruencyCheck()
-    local r = {STATUS_SUCCESS, nil, nil}
-
-    local blizzPartyCount = grp:getBlizzPartyCount()
-    local blizzPetCount = grp:getBlizzPetCount()
-    local partyCount = grp:getPartyCount()
-    local petCount = grp:getPetCount()
-
-    if blizzPartyCount < 2 then
-        return true, r
-    end
-
-    -- TEST 1:  names in the partyPlayers and blizzParty groups
-    --          match.
-    local partyNames = grp:getAddonPartyNames()
-    local blizzNames = GetHomePartyInfo()
-    for i = 1, blizzPartyCount do
-        if partyNames[i] ~= blizzNames[i] then
-            local st = debugstack()
-            local str = sprintf("%s: %s ~= %s", L["ARG_UNEQUAL_VALUES"], partyNames[i], blizzNames[i])
-            return false, E:setResult( str, st )
-        end
-    end
-
-    -- TEST 2a: Are the pet counts equal
-    if blizzPetCount ~= petCount then 
-        local st = debugstack()
-        local str = sprintf("%s", L["ARG_UNEQUAL_VALUES"])
-        return false, E:setResult( str, st )
-    end
-    
-    -- TEST 2a: Are player counts equal
-    if #partyNames ~= #blizzNames then 
-        local st = debugstack()
-        local str = sprintf("%s: party %d, blizz %d", L["ARG_UNEQUAL_VALUES"], playersAndPets, blizzAndPets )
-        return false, E:setResult( str, st )
-    end
-
-    return true, r
-end
 -- called when PLAYER_ENTERING_WORLD fires
--- The playersParty is a party that mirrors the blizz
+-- The addonParty is a party that mirrors the blizz
 -- party or group. The partyPlayer members have the same
 -- names and unitIds as do the blizzParty members.
-function grp:initPlayersParty()
-    local r = {STATUS_SUCCESS, nil, nil}
+function grp:initAddonParty()
+    local r = {STATUS_SUCCESS, nil, nil }
 
-    grp.playersParty = {}
+    if not grp:blizzPartyExists() then
+        local strace = debugstack()
+        r = {STATUS_SUCCESS, "Blizzard Party Does Not Yet Exist", strace }
+    end
 
-    -- This is always the player doing the inviting, i.e., the party leader. S/He
-    -- will not show up in blizzParty table.
+    grp.addonParty = {}
+
+    local blizzNames = GetHomePartyInfo()
+    ------------------------------------------------------------------------------
+    -- CREATE THE PLAYER ENTRY AND, IF A PET IS PRESENT, THE PET'S ENTRY AS WELL.
+    ------------------------------------------------------------------------------
     local memberName = UnitName("player")
     local playerId = "player"
-    r = grp:insertPartyMember(memberName, playerId, nil)
-    if r[1] ~= STATUS_SUCCESS then
-        return r
-    end
+    r = grp:insertPartyEntry(memberName, playerId, nil)
+    if r[1] ~= STATUS_SUCCESS then return r end
 
+    -- Does the player have a pet? If so, insert its entry into
+    -- addon's table.
+    local petId = "pet"
     local petName = UnitName("pet")
     if petName ~= nil then
-        r = grp:insertPartyMember(petName, "pet", memberName )
+        r = grp:insertPartyEntry(petName, petId, memberName )
+        if r[1] ~= STATUS_SUCCESS then   return r end
+        -- msg:postMsg(sprintf("%s Pet Name %s, Owner %s\n", E:fileLocation(debugstack()), petName, memberName ))
     end
-    -- NOTE: the table of names returned by GetHomePartyInfo() does
-    --          not include pets or the player whose name is given by 
-    --          UnitName( "player").
-    -- local count = grp:getBlizzPartyCount()
-    -- local partyCount = grp:getPartyCount()
-    -- if count ~= partyCount then
-    --     local st = debugstack()
-    --     local s = sprintf("party counts unequal: blizz is %d, player is %d", count, partyCount )
-    --     return E:setResult(s, st)
-    -- end
+
+    -----------------------------------------------------------------------------
+    --  CREATE AN ENTRY FOR EACH MEMBER (AND PET) OF THE BLIZZARD PARTY
+    -----------------------------------------------------------------------------
     local count = grp:getBlizzPartyCount()
-    for i = 1, count do      
-        -- get the blizz party member's name.
+    for i = 1, count do
         local blizzMemberName = UnitName( party[i] )
         if not grp:inPlayersParty( blizzMemberName ) then
-            r = grp:insertPartyMember( blizzMemberName, party[i], nil )
-            if r[1] ~= STATUS_SUCCESS then
-                return r
-            end
+            r = grp:insertPartyEntry( blizzMemberName, party[i], nil )
+            if r[1] ~= STATUS_SUCCESS then return r end
         end
+        -- Now, enter the pet if present
         local petName = UnitName( partypet[i])
         if petName ~= nil then
-            r = grp:insertPartyMember( petName, partypet[i], blizzMemberName  )
-            if r[1] ~= STATUS_SUCCESS then
-                return r
-            end
+            r = grp:insertPartyEntry( petName, partypet[i], blizzMemberName  )
+            if r[1] ~= STATUS_SUCCESS then return r end
+            -- msg:postMsg(sprintf("%s Pet Name %s, Owner %s\n", E:fileLocation(debugstack()), petName, blizzMemberName ))
         end
     end  
-    local successFull, r = congruencyCheck()
-    if not successFull then
-        return r
-    end
     return r
 end

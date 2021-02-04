@@ -29,7 +29,7 @@ local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
-grp.playersParty = {}
+grp.addonParty = {}
 local function testOne( s )
     local result = {STATUS_SUCCESS, nil, nil }
     if s == nil then
@@ -38,63 +38,53 @@ local function testOne( s )
     end
     return result
 end 
- ------------ GROUP EVENT HANDLER TESTS -----------------
-local function printEntryName( nvp )
-    if nvp[VT_PET_OWNER] ~= nil then
-        msg:postMsg( sprintf("Unit Name = %s, UnitId = %s, Owner's Name = %s\n", 
-                                        nvp[VT_UNIT_NAME], 
-                                        nvp[VT_UNIT_ID], 
-                                        nvp[VT_PET_OWNER]))
-    else
-        msg:postMsg( sprintf("Unit Name = %s, unitId = %s\n",  
-                                        nvp[VT_UNIT_NAME], 
-                                        nvp[VT_UNIT_ID] ))
-    end
-end
 
 SLASH_GROUP_TESTS1 = "/grp"
 SlashCmdList["GROUP_TESTS"] = function( num )
     ------ TEST INITIALIZATION -----------
     local r = {STATUS_SUCCESS, nil, nil}
 
-    r = grp:initPlayersParty()
+    r = grp:initAddonParty()
     if r[1] == STATUS_FAILURE then
         msg:postResult( r )
         return
     end 
-    local s = sprintf("*** PASSED INITIALIZATION TESTS ***\n\n")
-    msg:postMsg(s)
-
-    --- TEST GROUP/PARTY FUNCTIONS
-
-    -- TEST 1: Does GetHomePartyInfo() return all 
-    --         members of the party (pets excepting)
-
-    local blizzPartyNames = GetHomePartyInfo()
-    if blizzPartyNames == nil then
-        local stackTrace = debugstack()
-        r = E:setResult("Blizzard party does not yet exist.\n", stackTrace )
-        msg:postResult( r )
-        return
-    end
-    local name = sprintf("Blizz member Count %d: %s", #blizzPartyNames, blizzPartyNames[1])
-    for i = 2, #blizzPartyNames do        
-        name = name..sprintf(", %s", blizzPartyNames[i])        
-    end
-    name = name..sprintf("\n")
-    msg:postMsg( name )
+    -- local s = sprintf("*** PASSED INITIALIZATION TESTS ***\n\n")
+    -- msg:postMsg(s)
+    -- grp:dumpAddonPartyEntries()
 
     local addonPartyNames = grp:getAddonPartyNames()
-    -- + 1 added for "player"
-    local name = sprintf("Addon Member Count %d: %s", #addonPartyNames + 1, addonPartyNames[1])
-    for i = 2, #addonPartyNames do        
-        name = name..sprintf(", %s", addonPartyNames[i])        
+    if addonPartyNames == nil then
+        msg:postMsg( sprintf("%s grp:getAddonPartyNames() returned nil\n", E:fileLocation(debugstack())))
+        return
     end
-    name = name..sprintf("\n")
-    msg:postMsg( name )
+    
+    local blizzPartyNames = GetHomePartyInfo()
 
+    local playerId = "player"
+    local playerName = UnitName( playerId)
+    
+    local playerPetId = "pet"
+    local petName = UnitName(playerPetId)
+    local s = ""
+    if petName == nil then
+        s = s..sprintf("\n%s (player)", playerName )
+    else
+        s = s..sprintf("\n%s (%s) and Pet %s (%s)", playerName, playerId, petName, playerPetId )
+    end
 
+    for i = 1, #blizzPartyNames do
+        local unitId = "party"..tostring(i)
+        local petId = "partypet"..tostring(i)
 
+        local petName = UnitName( petId )
+        if petName == nil then
+            s = s..sprintf(", %s (%s)", blizzPartyNames[i], unitId )
+        else
+            s = s..sprintf(", %s (%s) and %s (%s)", blizzPartyNames[i], unitId, petName, petId )
+        end
+    end
+    msg:postMsg( sprintf("%s\n", s))
     return
 end
  --------------------- CORE TESTS -----------------

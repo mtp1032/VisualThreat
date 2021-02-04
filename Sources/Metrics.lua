@@ -13,165 +13,75 @@ local sprintf = _G.string.format
 local STATUS_SUCCESS 	= errors.STATUS_SUCCESS
 local STATUS_FAILURE 	= errors.STATUS_FAILURE
 
--- Returns a simple table of party names (including pets)
---      local nameTable = grp.getNameTableMembersAndPets
+local VT_UNIT_NAME               = grp.VT_UNIT_NAME
+local VT_UNIT_ID                 = grp.VT_UNIT_ID   
+local VT_PET_OWNER               = grp.VT_PET_OWNER 
+local VT_MOB_ID                  = grp.VT_MOB_ID                  
+local VT_THREAT_VALUE            = grp.VT_THREAT_VALUE             
+local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
+local VT_DAMAGE_TAKEN            = grp.VT_DAMAGE_TAKEN
+local VT_HEALING_RECEIVED        = grp.VT_HEALING_RECEIVED
 
---      local threat, accumThreat = grp.getThreatValues()
---      local damage, accumDamage = grp:getDamageValues( memberName )
---      local heals, accumHeals = grp:getHealValues( memberName )
+-- Accumulators
+local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
+local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
+local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
+local VT_BUTTON                  = grp.VT_BUTTON
+local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
-local MEMBER_NAME       = 1
-local THREAT            = 2
-local THREAT_RATIO      = 3
-local DAMAGE_TAKEN      = 4
-local DAMAGE_DONE 		= 5
-local HEALING_RECEIVED  = 6
-
--- returns an array of values for the specified spell
-local function getStatsDataSet( spellName )
-	local spellFound = false
-	local result = {STATUS_SUCCESS, nil, nil }
-
-	local dataSet = {}
-	for _, v in ipairs( tableOfSpells ) do
-		if v[1] == spellName then
-			table.insert( dataSet, v )
-			spellFound = true
-		end
-	end
-
-	if not spellFound then
-		result = {STATUS_FAILURE, sprintf("Spell, %s, not found.\n", debugstack() )}
-		dataSet = nil
-	end
-
-	return dataSet, result
-end
--- a dataset is an array of spell damages, i.e., t = {N1, N2,..,Nn}
-local function calculateStats( dataSet )
-
-	local sum = 0
-	local mean = 0
-	local variance = 0
-	local stdDev = 0
-	local n = 0
-
-	if dataSet == nil then
-		return mean, stdDev
-	end
-	if #dataSet == 0 then
-		return mean, stdDev
-	end
-
-	-- calculate the mean
-	for _, v in ipairs( dataSet ) do
-		n = n + 1
-		sum = sum + v[2]
-	end
-	mean = sum/n
-
-	-- calculate the variance
-	local residual = 9
-	for _, v in ipairs(dataSet) do
-		local residual =  (v[2] - mean)^2
-		variance = variance + residual
-	end
-
-	if n == 1 then
-		stdDev = 0.0
-	else
-		variance = variance/(n-1)
-		stdDev = math.sqrt( variance )/n
-	end
-
-	return mean, stdDev
-end
--- For correlation coefficient see https://www.youtube.com/watch?v=lVOzlHx_15s
--- A dataset is given by a set of x values and a set of y values.
-local function getCorrelation( dataSet )
-	local n = #dataset
-	if n == 0 then return end
-
-	local r = 0
-	sumX = 0
-	sumY = 0
-	local dsX = 0
-	local dsY = 0
-
-	for _, xyPair in ipairs(dataSet) do
-		sumX = sumX + xyPair[1]
-		sumY = sumY + xyPair[2]
-	end
-	local xavg = sumX/n
-	local yavg = sumY/n
-	local ssX = 0
-	local ssY = 0
-	local sp = 0
-
-	for _, xyPair in ipairs(dataSet) do
-		ssX = ssX + (xyPair[1] - xavg)^2		-- sum of the squares for the x elements
-		ssY = ssY + (xyPair[2] - yavg)^2		-- sum of the squares for the y elements
-		sp = sp + (ssX * ssY)
-	end
-
-	r = sp /(sqrt(ssX) * sqrt(ssY))
-	return r
-end
+local SUM_THREAT_VALUE      = grp.SUM_THREAT_VALUE
+local SUM_DAMAGE_TAKEN      = grp.SUM_DAMAGE_TAKEN
+local SUM_HEALS_RECEIVED    = grp.SUM_HEALS_RECEIVED
+local SUM_DAMAGE_DONE       = grp.SUM_DAMAGE_DONE
 
 -- SORTING FUNCTIONS: All functions sort high to low
-local function sortByThreat(entry1, entry2)
-    return entry1[THREAT] > entry2[THREAT]
+local function sortByThreatValue(entry1, entry2)
+    return entry1[SUM_THREAT_VALUE] > entry2[SUM_THREAT_VALUE]
 end
-local function sortByThreatRatio( entry1, entry2 )
-    return entry1[THREAT_RATIO] > entry2[THREAT_RATIO]
+local function sortByThreatRatio(entry1, entry2)
+    return entry1[THREAT_VALUE_RATIO] > entry2[THREAT_VALUE_RATIO]
 end
-local function sortByDamageTaken( entry1, entry2 )
-    return entry1[DAMAGE_TAKEN] > entry2[DAMAGE_TAKEN]
+local function sortByDamageTaken(entry1, entry2)
+    return entry1[SUM_DAMAGE_TAKEN] > entry2[SUM_DAMAGE_TAKEN]
 end
-local function sortByDamageDone( entry1, entry2 )
-    return entry1[DAMAGE_DONE] > entry2[DAMAGE_DONE]
+local function sortByHealsReceived(entry1, entry2)
+    return entry1[SUM_HEALS_RECD] > entry2[SUM_HEALS_RECD]
 end
-local function sortByHealing( entry1, entry2 )
-    return entry1[HEALING_RECEIVED] > entry2[HEALING_RECEIVED]
+
+local MEMBER_NAME 			= 1
+local SUM_MEMBER_THREAT 	= 2
+local THREAT_VALUE_RATIO	= 3
+local SUM_DMG_TAKEN 		= 4
+local SUM_HEALS_RECD 		= 5
+
+local memberStats = {}
+
+local function initMemberStats()
+	local stats = {grp:getStatsTable()}
+	
+	for i, entry in ipairs( grp.addonParty ) do
+		memberName = entry[VT_UNIT_NAME]
+		local sumMemberThreat, threatValueRatio = grp:getThreatStats( memberName )
+		local sumDmgTaken, sumDmgDone = grp:getDamageStats( memberName )
+		local threatValueRatio = (sumMemberThreat/stats[SUM_THREAT_VALUE])
+		local sumHealsRecd = grp:getHealingStats( memberName )
+
+		local entry = {memberName, sumMemberThreat, threatValueRatio, sumDmgTaken, sumHealsRecd }
+		table.insert( memberStats, entry )
+	end
 end
-local function getMetrics()
-    local metrics = {}
-    local nameTable = grp.getNameTableMembersAndPets
-    for i = 1, #nameTable do
-        local name = nameTable[i]
-        local _, accumThreat = grp:getThreatValues( name )
-        local threatRatio = grp:getThreatValueRatio( name )
-        local _, accumDmgTaken, accumDmgDone = grp:getDamageStats( name )
-        local _, accumHeals = grp:getHealingValues( name )
-        local entry = {name, accumThreat, threatRatio, accumDmg, accumHeals }
-        table.insert( metrics, entry )
-    end
-    return metrics
-end
-local function printMetricsTable( t )
-    for _, v in ipairs( t ) do
-        local s = sprintf("  %s: %d, %d, %d, %d\n", v[MEMBER_NAME], v[THREAT], v[THREAT_RATIO], v[DAMAGE_TAKEN], v[HEALING_RECEIVED ])
-        postMsg( s )
-    end
-    postMsg("\n")
-end
-local function printHealingMetrics()
-    local metrics = getMetrics()
-    table.sort( metrics, sortByHealing )
-    postMsg("HEALING RECEIVED:\n")
-    printMetricsTable( metrics )
-end
-local function printDamageMetrics()
-    local metrics = getMetrics()
-    table.sort( metrics, sortByDamageTaken )
-    postMsg("DAMAGE TAKEN:")
-    printMetricsTable( metrics )
-end
-local function printThreatMetrics()
-    local metrics = getMetrics()
-    table.sort( metrics, sortByThreat )
-    postMsg("THREAT GENERATED:")
-    printMetricsTable( metrics )
+function mt:memberStats( memberName)
+	if #memberStats == 0 then
+		initMemberStats()
+	end
+
+	local s = nil
+	for _, entry in ipairs( memberStats ) do
+		if entry[MEMBER_NAME] == memberName then
+			s = sprintf("  %s: Accum Threat %d, Threat Ratio %0.1f%%, Damage Taken %d,  Healing Received %d\n", entry[MEMBER_NAME], entry[SUM_MEMBER_THREAT], entry[THREAT_VALUE_RATIO], entry[SUM_DMG_TAKEN], entry[SUM_HEALS_RECD]*100 )
+		end
+	end
+    return s
 end
 
 SLASH_METRIC_TESTS1 = "/metrics"

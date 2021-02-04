@@ -58,26 +58,17 @@ local function OnEvent( self, event, ...)
     if event == "PLAYER_REGEN_ENABLED" then
         ceh.IN_COMBAT = false
 
-        local sumDmgTaken = 0
-        local sumDmgDone = 0
-        local sumThreat = 0
-    
-        msg:postMsg("ENCOUNTER SUMMARY\n")
-        local playerNames = grp:getPlayerNames()
-        for i = 1, #playerNames do
-            sumDmgTaken, sumDmgDone = grp:getDamageStats( playerNames[i] )            
-            _, sumThreat = grp:getThreatValues( playerNames[i] )
-
-            local msgStr = sprintf("    %s: Total Damage Taken: %d, Total Damage Done: %d, Total Threat %d\n", playerNames[i], sumDmgTaken, sumDmgDone, sumThreat )
-            msg:postMsg( msgStr )
+        msg:postMsg(sprintf("\nENCOUNTER SUMMARY\n"))
+        for _, v in ipairs( grp.addonParty ) do
+            local str = mt:memberStats( v[VT_UNIT_NAME])
+            msg:postMsg( str )
         end
         msg:postMsg("\n\n")
-        
-        grp:resetCombatStats()
-    end
+            end
     -------------------- PLAYER_REGENN_DISABLED ---------------
     if event == "PLAYER_REGEN_DISABLED" then
         ceh.IN_COMBAT = true
+        grp:resetCombatStats()
     end
     -------------------------- ADDON_LOADED ----------------
     if event == "ADDON_LOADED" and arg1 == "VisualThreat" then        -- The framePosition array has been loaded by this point
@@ -91,6 +82,9 @@ local function OnEvent( self, event, ...)
     end   
     ------------------------------ COMBAT LOG EVENT UNFILTERED -----------
     if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        if IN_COMBAT == false then
+            return
+        end
         local stats = {CombatLogGetCurrentEventInfo()}
 
         ceh:handleEvent( stats )
@@ -105,7 +99,7 @@ local function OnEvent( self, event, ...)
             return 
         end
 
-        r = grp:initPlayersParty()
+        r = grp:initAddonParty()
         if r[1] == STATUS_FAILURE then
             msg:postResult( r )
             return
@@ -115,20 +109,19 @@ local function OnEvent( self, event, ...)
         end
         btn.threatIconStack = btn:createIconStack()
         btn.updatePortraitButtons()
-        btn.threatIconStack:Show()
+        -- btn.threatIconStack:Show()
 
         return
     end
     --------------------------- GROUP LEFT ---------------------
     if event == "GROUP_LEFT" then
-        -- grp:removePlayer( UnitName("player"))
         btn.threatIconStack:Hide()
     end
     --------------------------- GROUP JOINED ---------------------
     if event == "GROUP_JOINED" then
         local r = {STATUS_SUCCESS, nil, nil}
 
-        r = grp:initPlayersParty()
+        r = grp:initAddonParty()
         if r[1] ~= STATUS_SUCCESS then
             msg:postResult( r )
             return
@@ -145,12 +138,11 @@ local function OnEvent( self, event, ...)
     if event == "GROUP_ROSTER_UPDATE" then
         local r = {STATUS_SUCCESS, nil, nil}
 
-
         local blizzPartyNames = GetHomePartyInfo()
         if blizzPartyNames == nil then
             return
         end
-        r = grp:initPlayersParty()
+        r = grp:initAddonParty()
         if r[1] ~= STATUS_SUCCESS then
             msg:postResult( r )
             return
@@ -161,6 +153,19 @@ local function OnEvent( self, event, ...)
         btn.threatIconStack:Show()
         return
     end
+    -------------------- PET DISMISS START -------------------
+    if event == "PET_DISMISS_START" then
+        local petName = UnitName("pet")
+        local petOwner = grp:getOwnerByPetName( petName )
+        grp:removeMember( petName )
+        -- msg:postMsg( sprintf("%s %s's pet %s removed from party.\n", E:fileLocation( debugstack()), petOwner, petName ))
+
+        btn.threatIconStack:Hide()
+        btn.threatIconStack = btn:createIconStack()
+        btn.updatePortraitButtons()
+        btn.threatIconStack:Show()
+        return
+    end    
     ------------------------- PLAYER LOGIN -----------------
     if event == "PLAYER_LOGIN" and arg1 == "VisualThreat" then
         return
@@ -169,10 +174,6 @@ local function OnEvent( self, event, ...)
     if event == "PLAYER_LOGOUT" then
         return
     end        
-    --------------------------- PET DISMISS START ---------------------
-    if event == "PET_DISMISS_START" then
-      return
-    end
     ---------------------- UNIT THREAT SITUATION UPDATE ---------------
     if event == "UNIT_THREAT_SITUATION_UPDATE" then
         -- arg1 is the unitId of the affected player
@@ -188,7 +189,7 @@ local function OnEvent( self, event, ...)
         if not exists then return end
         
         tev:updateThreatStatus( arg1 )
-        btn:sortThreatStack()
+        -- btn:sortThreatStack()
     end
 end
 

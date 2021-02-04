@@ -16,11 +16,12 @@ PROBLEM:
 local _, VisualThreat = ...
 VisualThreat.Buttons = {}
 btn = VisualThreat.Buttons
+
 local L = VisualThreat.L
 local E = errors 
 local sprintf = _G.string.format 
 
-local BUTTON_WIDTH = 230
+local BUTTON_WIDTH = 200
 local BUTTON_HEIGHT = 80
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
@@ -42,12 +43,17 @@ local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 local red = "\124cFFFF0000"
 btn.threatIconStack = nil
 
+local function highToLow( entry1, entry2)
+  return entry1[grp.VT_THREAT_VALUE_RATIO ] > entry2[grp.VT_THREAT_VALUE_RATIO]
+end
+
 -- called  by createIconStack()
 local function createEmptyButton(parent)
 
   local buttonFrame = CreateFrame("Button",nil,parent,"TooltipBackdropTemplate")
   buttonFrame:SetBackdropBorderColor(0.5,0.5,0.5)
 
+  -- set size and position of portrait.
   buttonFrame.Portrait = buttonFrame:CreateTexture(nil,"ARTWORK")
   buttonFrame.Portrait:SetSize(BUTTON_HEIGHT-8,BUTTON_HEIGHT-8)
   buttonFrame.Portrait:SetPoint("LEFT",4,0)
@@ -69,22 +75,23 @@ local function createEmptyButton(parent)
 
   return buttonFrame 
 end
-local function updateButton( entry, button )
+local function updateButton( entry )
     local unitId          = entry[VT_UNIT_ID]
-    local playerName      = entry[VT_UNIT_NAME]
-    local threatRatio     = entry[VT_THREAT_VALUE_RATIO]*100
-    local damageTaken     = entry[VT_ACCUM_DAMAGE_TAKEN]
-    local HealingReceived = entry[VT_ACCUM_HEALING_RECEIVED]
+    local unitName        = entry[VT_UNIT_NAME]
+    local membersThreat, threatRatio = grp:getThreatStats( unitName )
+    local damageTaken, damageDone = grp:getDamageStats( unitName )
+    local HealingReceived   = grp:getHealingStats( unitName)
+    local button          = entry[VT_BUTTON]
 
     SetPortraitTexture( button.Portrait, unitId )
-    button.Name:SetText( playerName )
+    button.Name:SetText( unitName )
     
     local dmgStr = sprintf("Damage taken %d", damageTaken)
     button.Damage:SetText("")
     button.Damage:SetText( dmgStr )
 
     -- local threatStr = sprintf( "Threat: "..red.." %d%%", threatRatio)
-    local threatStr = sprintf( "Threat:  %d%%", threatRatio)
+    local threatStr = sprintf( "Threat:  %0.1f%%", threatRatio * 100)
 
     button.Threat:SetText( "" )
     button.Threat:SetText( threatStr )
@@ -92,15 +99,15 @@ end
 function btn:createIconStack()
 
     -- PARTY STUFF
-    if #grp.playersParty == 0 then
+    if #grp.addonParty == 0 then
       return
     end
 
-    local partyCount = grp:getPartyCount() + grp:getPetCount()
+    local groupCount = grp:getPlayerCount() + grp:getPetCount()
 
     ------- CREATE THE FRAME FOR THE PORTRAIT ICONS ---------------
     local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
-    f:SetSize(BUTTON_WIDTH+10,BUTTON_HEIGHT*partyCount+28)
+    f:SetSize(BUTTON_WIDTH+10,BUTTON_HEIGHT*groupCount+28)
     f.TitleText:SetText("Threat Stack")
   ------------ SET, SAVE, and GET FRAME POSITION ---------------------
     f:SetPoint( framePosition[1], 
@@ -116,77 +123,47 @@ function btn:createIconStack()
     end)
 
     ---- CREATE A PORTRAIT BUTTON FOR EACH PARTY MEMBER -------
-    f.portraitButtons = {} 
+    table.sort( grp.addonParty, highToLow )
 
-    for i, entry in ipairs( grp.playersParty ) do
+    f.portraitButtons = {} 
+    for i, entry in ipairs( grp.addonParty ) do
+      -- msg:postMsg( sprintf("Creating portrait button for %s...", entry[VT_UNIT_NAME]))
       f.portraitButtons[i] = createEmptyButton(f)
       f.portraitButtons[i]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
       f.portraitButtons[i]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
-
-      ----- SET WHAT HAPPENS WHEN A PORTRAIT IS CLICKED -----------
-      f.portraitButtons[i]:SetScript("OnClick", function(self)
-          local playerName = self.Name:GetText()
-
-          local accumDmgTaken = grp:getDamageStats( playerName )
-          local status = UnitThreatSituation( entry[VT_UNIT_ID], targetId )
-        
-          local r = 0 g = 0 b = 0
-          if status == nil then
-            r = 0 g = 0 b = 0
-          elseif status > 0 then
-            if status == 1 then
-            r = 1.0 g = 1.0 b = 1.0 
-          elseif status == 2 then
-            r = 0.0 g = 1.0 b = 0.0
-          elseif status == 3 then
-            r = 1.0 g = 1.0 b = 0.0
-          elseif status == 4 then
-            r = 1.0 g = 0.0 b = 0.0
-          end
-
-          -- local r, g, b = GetThreatStatusColor(status)
-          local dmgTxt = sprintf("Cumulative damage taken by %s: %d", playerName, accumDmgTaken)
-          DEFAULT_CHAT_FRAME:AddMessage( dmgTxt, r, g, b )
-        end
-      end)
-
       entry[VT_BUTTON] = f.portraitButtons[i]
-      updateButton( entry, f.portraitButtons[i] )
+      updateButton( entry )
+      -- msg:postMsg( sprintf("done.\n"))
     end
     return f
 end
 -- called from ThreatEventHandler
 function btn:updatePortraitButtons()
 
-  if #grp.playersParty == 0 then
-    return
-  end
+  -- if #grp.addonParty == 0 then
+  --   return
+  -- end
 
-  for _, entry in ipairs( grp.playersParty ) do        
-    local button = entry[VT_BUTTON]
-    if button ~= nil then
-        updateButton( entry, button )
-    end
-  end
+  -- table.sort( grp.addonParty, highToLow )
+  -- for _, entry in ipairs( grp.addonParty ) do        
+  --   updateButton( entry )
+  -- end
 end
 
-local function highToLow( entry1, entry2)
-  return entry1[VT_THREAT_VALUE_RATIO ] > entry2[VT_THREAT_VALUE_RATIO]
-end
-function btn:sortThreatStack()
+-- function btn:sortThreatStack()
 
-    -- sort the grp.playersParty and then copy the sorted
-    -- table into the f.portraitButtons table.
-  table.sort( grp.playersParty, highToLow )
+--     -- sort the grp.addonParty and then copy the sorted
+--     -- table into the f.portraitButtons table.
+--   table.sort( grp.addonParty, highToLow )
 
-  for i, entry in ipairs( grp.playersParty ) do
-    local button = entry[VT_BUTTON]
-    if button ~= nil then
-      button:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
-    end
-  end
-  return f
-end
+--   for i, entry in ipairs( grp.addonParty ) do
+--     local button = entry[VT_BUTTON]
+--     if button ~= nil then
+--       button:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+--     end
+--   end
+--   return f
+-- end
 
 
     -- local status = UnitThreatSituation( entry[VT_UNIT_ID], targetId )
