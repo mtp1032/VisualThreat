@@ -59,7 +59,8 @@ local function OnEvent( self, event, ...)
         ceh.IN_COMBAT = false
 
         msg:postMsg(sprintf("\nENCOUNTER SUMMARY\n"))
-        for _, v in ipairs( grp.addonParty ) do
+        local addonParty = grp:getAddonPartyTable()
+        for _, v in ipairs( addonParty ) do
             local str = mt:memberStats( v[VT_UNIT_NAME])
             msg:postMsg( str )
         end
@@ -105,11 +106,11 @@ local function OnEvent( self, event, ...)
             return
         end
         if btn.threatIconStack then
+            E:where()
             btn.threatIconStack:Hide()
         end
         btn.threatIconStack = btn:createIconStack()
-        btn.updatePortraitButtons()
-        -- btn.threatIconStack:Show()
+        -- btn.updatePortraitButtons()
 
         return
     end
@@ -131,7 +132,7 @@ local function OnEvent( self, event, ...)
             btn.threatIconStack:Hide()
         end
         btn.threatIconStack = btn:createIconStack()
-        btn.updatePortraitButtons()
+        -- btn.updatePortraitButtons()
         btn.threatIconStack:Show()
     end
     --------------------------- GROUP ROSTER UPDATE ---------------------
@@ -149,7 +150,6 @@ local function OnEvent( self, event, ...)
         end
         btn.threatIconStack:Hide()
         btn.threatIconStack = btn:createIconStack()
-        btn.updatePortraitButtons()
         btn.threatIconStack:Show()
         return
     end
@@ -162,7 +162,7 @@ local function OnEvent( self, event, ...)
 
         btn.threatIconStack:Hide()
         btn.threatIconStack = btn:createIconStack()
-        btn.updatePortraitButtons()
+        -- btn.updatePortraitButtons()
         btn.threatIconStack:Show()
         return
     end    
@@ -176,9 +176,8 @@ local function OnEvent( self, event, ...)
     end        
     ---------------------- UNIT THREAT SITUATION UPDATE ---------------
     if event == "UNIT_THREAT_SITUATION_UPDATE" then
-        -- arg1 is the unitId of the affected player
-        local exists, count = grp:blizzPartyExists()
-        if not exists then return end
+        local targetId = "target"
+        local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( arg1, targetId )
 
         -- local s = sprintf("%s: Resorting Threat Stack. %s changed.\n", event, UnitName( arg1 )) 
         -- msg:postMsg( s )
@@ -189,7 +188,12 @@ local function OnEvent( self, event, ...)
         if not exists then return end
         
         tev:updateThreatStatus( arg1 )
-        -- btn:sortThreatStack()
+
+        btn.threatIconStack:Hide()
+        btn.threatIconStack = btn:createIconStack()
+        -- btn.updatePortraitButtons()
+        btn.threatIconStack:Show()
+        return
     end
 end
 

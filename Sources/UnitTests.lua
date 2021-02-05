@@ -29,7 +29,6 @@ local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
-grp.addonParty = {}
 local function testOne( s )
     local result = {STATUS_SUCCESS, nil, nil }
     if s == nil then
@@ -134,7 +133,16 @@ local function top()
 end
 SLASH_BUTTON_TESTS1 = "/btn"
 SlashCmdList["BUTTON_TESTS"] = function( num )
-    btn:updatePortraitButtons( btn.threatIconStack )
+    r = grp:initAddonParty()
+    if r[1] == STATUS_FAILURE then
+        msg:postResult( r )
+        return
+    end
+    if btn.threatIconStack then
+        btn.threatIconStack:Hide()
+    end
+    btn.threatIconStack = btn:createIconStack()
+    btn.updatePortraitButtons()
     return
  end
 -- CREATE A DRAGABLE FRAME

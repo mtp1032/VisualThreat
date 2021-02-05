@@ -117,9 +117,22 @@ function ceh:handleEvent( stats )
             -- msg:postMsg( sprintf("%s %s's pet %s removed from party.\n", E:fileLocation( debugstack()), huntersName, petName ))
         end
     end
-    btn.threatIconStack:Hide()
+
+    -- r = grp:initAddonParty()
+    -- if r[1] == STATUS_FAILURE then
+    --     msg:postResult( r )
+    --     return
+    -- end
+    if btn.threatIconStack then
+        btn.threatIconStack:Hide()
+    end
     btn.threatIconStack = btn:createIconStack()
-    btn.updatePortraitButtons()
-    btn.threatIconStack:Show()
+    -- btn.updatePortraitButtons()
+    -- btn.threatIconStack:Show()
+
+    -- btn.threatIconStack:Hide()
+    -- btn.threatIconStack = btn:createIconStack()
+    -- btn.updatePortraitButtons()
+    -- btn.threatIconStack:Show()
     return
 end
