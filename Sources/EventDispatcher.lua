@@ -179,8 +179,9 @@ local function OnEvent( self, event, ...)
         local targetId = "target"
         local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( arg1, targetId )
 
-        -- local s = sprintf("%s: Resorting Threat Stack. %s changed.\n", event, UnitName( arg1 )) 
-        -- msg:postMsg( s )
+        btn.threatIconStack:Hide()
+        btn.threatIconStack = btn:createIconStack()
+        btn.threatIconStack:Show()
     end
     ---------------------- UNIT THREAT LIST UPDATE ---------------
     if event == "UNIT_THREAT_LIST_UPDATE" then
@@ -189,10 +190,6 @@ local function OnEvent( self, event, ...)
         
         tev:updateThreatStatus( arg1 )
 
-        btn.threatIconStack:Hide()
-        btn.threatIconStack = btn:createIconStack()
-        -- btn.updatePortraitButtons()
-        btn.threatIconStack:Show()
         return
     end
 end
