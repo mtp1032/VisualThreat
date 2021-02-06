@@ -33,14 +33,13 @@ local VT_BUTTON                  = grp.VT_BUTTON
 local VT_NUM_ELEMENTS            = grp.VT_BUTTON
 
 -- When the UNIT_THREAT_LIST_UPDATE fires, the handler calls updateThreatStatus
--- to update all the threat metrics - Notably, VT_THREAT_VALUE, VT_HEALING_RECEIVED, 
+-- to update all the threat metrics - Notably, VT_ACCUM_THREAT_VALUE, VT_DAMAGE_TAKEN, and 
 -- VT_ACCUM_HEALING_RECEIVED.
 function tev:updateThreatStatus( mobId )
     if mobId == "player" then
         return
     end
     -- Sum the threat values as we loop through and update each party member's entry
-    local sumThreatValue = 0
     local addonParty = grp:getAddonPartyTable()
     for _, entry in ipairs( addonParty ) do
         local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( entry[VT_UNIT_ID], mobId )
@@ -51,5 +50,7 @@ function tev:updateThreatStatus( mobId )
         if threatValue > 0 then
             grp:setThreatValues( entry[VT_UNIT_NAME], threatValue )
         end
+
+        btn:updateButton( entry )
     end
 end
