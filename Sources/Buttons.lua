@@ -86,8 +86,7 @@ local function updateButton( entry )
 end
 function btn:createIconStack()
 
-    local groupCount = grp:getTotalMemberCount()
-    if groupCount == 0 then return end
+  local groupCount = grp:getTotalMemberCount()
 
     ------- CREATE THE FRAME FOR THE PORTRAIT ICONS ---------------
     local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
