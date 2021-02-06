@@ -57,15 +57,16 @@ local function OnEvent( self, event, ...)
     -------------------- PLAYER_REGEN_ENABLED ----------------
     if event == "PLAYER_REGEN_ENABLED" then
         ceh.IN_COMBAT = false
+        msg:postMsg(sprintf("\n*** Combat Ended ***\n"))
 
-        msg:postMsg(sprintf("\nENCOUNTER SUMMARY\n"))
-        local addonParty = grp:getAddonPartyTable()
-        for _, v in ipairs( addonParty ) do
-            local str = mt:memberStats( v[VT_UNIT_NAME])
-            msg:postMsg( str )
-        end
-        msg:postMsg("\n\n")
-            end
+        -- msg:postMsg(sprintf("\nENCOUNTER SUMMARY\n"))
+        -- local addonParty = grp:getAddonPartyTable()
+        -- for _, v in ipairs( addonParty ) do
+        --     local str = mt:memberStats( v[VT_UNIT_NAME])
+        --     msg:postMsg( str )
+        -- end
+        -- msg:postMsg("\n\n")
+    end
     -------------------- PLAYER_REGENN_DISABLED ---------------
     if event == "PLAYER_REGEN_DISABLED" then
         ceh.IN_COMBAT = true
@@ -177,8 +178,15 @@ local function OnEvent( self, event, ...)
     ---------------------- UNIT THREAT SITUATION UPDATE ---------------
     if event == "UNIT_THREAT_SITUATION_UPDATE" then
         local targetId = "target"
-        local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( arg1, targetId )
 
+        local groupCount = grp:getTotalMemberCount()
+        if groupCount == 0 then return end
+
+        local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( arg1, targetId )
+    
+        if btn.threatIconStack == nil then
+            btn.threatIconStack = btn:createIconStack()
+        end
         btn.threatIconStack:Hide()
         btn.threatIconStack = btn:createIconStack()
         btn.threatIconStack:Show()
