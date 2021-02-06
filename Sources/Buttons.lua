@@ -27,6 +27,7 @@ local BUTTON_HEIGHT = 80
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
 local VT_BUTTON                  = grp.VT_BUTTON
+local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 
 local red = "\124cFFFF0000"
 btn.threatIconStack = nil
@@ -107,9 +108,12 @@ function btn:createIconStack()
 
     ---- CREATE A PORTRAIT BUTTON FOR EACH PARTY MEMBER -------
     f.portraitButtons = {} 
-    local addonParty = grp:getAddonPartyTable()
+    -- local addonParty = grp:getAddonPartyTable()
 
-    for i, entry in ipairs( addonParty ) do
+    local sortedTable = grp:sortAddonTable( VT_ACCUM_THREAT_VALUE)
+    
+
+    for i, entry in ipairs( sortedTable ) do
       f.portraitButtons[i] = createEmptyButton(f)
       f.portraitButtons[i]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
       f.portraitButtons[i]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
@@ -118,4 +122,26 @@ function btn:createIconStack()
       updateButton( entry )
     end
     return f
+end
+function btn:updateButton( entry )
+  local button          = entry[VT_BUTTON]
+  local unitId          = entry[VT_UNIT_ID]
+  local unitName        = entry[VT_UNIT_NAME]
+  local membersThreat, totalThreat  = grp:getThreatStats( unitName )
+  local damageTaken, damageDone     = grp:getDamageStats( unitName )
+  local HealingReceived             = grp:getHealingStats( unitName)
+  
+  local dmgStr = sprintf("Damage taken %d", damageTaken)
+  button.Damage:SetText("")
+  button.Damage:SetText( dmgStr )
+
+  -- local threatStr = sprintf( "Threat: "..red.." %d%%", threatRatio)
+  local relativeThreat = 0
+  if totalThreat ~= 0 then
+    relativeThreat = membersThreat/totalThreat
+  end
+  local threatStr = sprintf( "Threat:  %0.2f%%", relativeThreat * 100)
+
+  button.Threat:SetText( "" )
+  button.Threat:SetText( threatStr )
 end
