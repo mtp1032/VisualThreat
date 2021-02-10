@@ -17,6 +17,7 @@ Sources\Core.lua
 Sources\Errors.lua
 Sources\MsgFrames.lua
 Sources\GroupEventHandler.lua
+##Sources\StatusBar.lua
 Sources\Buttons.lua
 Sources\CombatEventHandler.lua
 Sources\ThreatEventHandler.lua

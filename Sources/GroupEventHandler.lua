@@ -28,7 +28,7 @@ grp.VT_THREAT_VALUE_RATIO       = 6
 grp.VT_ACCUM_DAMAGE_TAKEN       = 7
 grp.VT_ACCUM_DAMAGE_DONE        = 8
 grp.VT_ACCUM_HEALING_RECEIVED   = 9
-grp.VT_BUTTON                   = 10
+grp.VT_UNIT_PORTRAIT            = 10
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
@@ -41,7 +41,7 @@ local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
 local VT_ACCUM_DAMAGE_DONE       = grp.VT_ACCUM_DAMAGE_DONE
 local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
-local VT_BUTTON                  = grp.VT_BUTTON
+local VT_UNIT_PORTRAIT           = grp.VT_UNIT_PORTRAIT
 
 -- Indices into the stats table
 grp.SUM_THREAT_VALUE    = 1
@@ -62,7 +62,7 @@ local statsTable = { 0,    -- SUM_THREAT_VALUE
 grp._EMPTY = ""
 local _EMPTY = grp._EMPTY
 
-local _defaultEntry = { _EMPTY, _EMPTY, nil, nil,0,0,0,0,0,_EMPTY}
+local _defaultEntry = { _EMPTY, _EMPTY, nil, nil, 0, 0, 0, 0, 0, _EMPTY, _EMPTY}
 
 local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
 local party     = {"party1",    "party2",    "party3",    "party4" }
@@ -115,7 +115,7 @@ local function initializePartyEntry( unitName, unitId, petOwner, mobId )
     --     return nil, E:setResult(sprintf("%s's unitId is nil!\n", unitName), debugstack() ) 
     -- end
 
-    local newEntry = { unitName, unitId, petOwner, mobId, 0,0,0,0,0,_EMPTY }
+    local newEntry = { unitName, unitId, petOwner, mobId, 0,0,0,0,0,_EMPTY, _EMPTY }
     return newEntry, r
 end
 function grp:insertPartyEntry( unitName, unitId, OwnerName, mobId )    

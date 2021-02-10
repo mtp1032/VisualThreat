@@ -21,77 +21,85 @@ local L = VisualThreat.L
 local E = errors 
 local sprintf = _G.string.format 
 
-local BUTTON_WIDTH = 230
-local BUTTON_HEIGHT = 80
+local BUTTON_WIDTH = 250
+local BUTTON_HEIGHT = 50
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
-local VT_BUTTON                  = grp.VT_BUTTON
+local VT_UNIT_PORTRAIT           = grp.VT_UNIT_PORTRAIT
 local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
+
+local _EMPTY                     = grp._EMPTY
 
 local red = "\124cFFFF0000"
 btn.threatIconStack = nil
+
+local BAR_WIDTH    = 200
+local BAR_HEIGHT    = 20
+
+local function getClassColor( unitId )
+  local unitGUID = UnitGUID( unitId )
+  local _, localizedClassName = GetPlayerInfoByGUID( unitGUID )
+  return GetClassColor( localizedClassName )
+end
+
+local function createStatusBar( parent )
+
+  -- this frame creates a background for the status bar
+  local f = CreateFrame("Frame", nil, parent, "TooltipBackdropTemplate")
+  f:SetBackdropBorderColor(0.5,0.5,0.5)
+  f:SetSize(BAR_WIDTH, BAR_HEIGHT)
+
+  f.statusBar = CreateFrame("StatusBar", nil, f )
+  Mixin(f.statusBar, SmoothStatusBarMixin)
+  f.statusBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+  f.statusBar:SetMinMaxSmoothedValue(0,1)
+
+  return f.statusBar
+end
+-- ******************* UNIT TESTING ******************************
+-- C_Timer.NewTicker(0.5, function()
+--     local val = random(100)/100
+--     E:where( tostring( val ))
+--     f.statusBar:SetSmoothedValue( val ) 
+-- end)
+
 
 -- called  by createIconStack()
 local function createEmptyButton(parent)
 
   local buttonFrame = CreateFrame("Button",nil,parent,"TooltipBackdropTemplate")
   buttonFrame:SetBackdropBorderColor(0.5,0.5,0.5)
+  -- buttonFrame:SetAlpha( 0.5 )
 
   buttonFrame.Portrait = buttonFrame:CreateTexture(nil,"ARTWORK")
   buttonFrame.Portrait:SetSize(BUTTON_HEIGHT-8,BUTTON_HEIGHT-8)
   buttonFrame.Portrait:SetPoint("LEFT",4,0)
 
   buttonFrame.Name = buttonFrame:CreateFontString(nil,"ARTWORK", "GameFontNormal")
-  buttonFrame.Name:SetPoint("TOPLEFT",buttonFrame.Portrait,"TOPRIGHT",4,-4)
-  buttonFrame.Name:SetPoint("BOTTOMRIGHT",buttonFrame,"RIGHT",-4,0)
+  buttonFrame.Name:SetPoint("TOPLEFT", buttonFrame.Portrait, "TOPRIGHT",6,-4)
+  buttonFrame.Name:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, 0 )
   buttonFrame.Name:SetJustifyH("LEFT")
 
-  buttonFrame.Threat = buttonFrame:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-  buttonFrame.Threat:SetPoint("TOPLEFT",buttonFrame.Portrait,"RIGHT",4,0)
-  buttonFrame.Threat:SetPoint("BOTTOMRIGHT",-4,4)
-  buttonFrame.Threat:SetJustifyH("LEFT")
+  -- creates a status bar of the player's class color.
+  buttonFrame.StatusBar = createStatusBar(buttonFrame)
+  buttonFrame.StatusBar:SetPoint("TOPLEFT", buttonFrame.Portrait, "RIGHT",4,-4)
+  --buttonFrame.StatusBar:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, 0 )
+  buttonFrame.StatusBar:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, -20 )
 
-  buttonFrame.Damage = buttonFrame:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-  buttonFrame.Damage:SetPoint("TOPLEFT",buttonFrame.Portrait,"RIGHT",4,35)
-  buttonFrame.Damage:SetPoint("BOTTOMRIGHT",-4,4)
-  buttonFrame.Damage:SetJustifyH("LEFT")
+  Mixin(buttonFrame.StatusBar, SmoothStatusBarMixin)
+  buttonFrame.StatusBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
 
   return buttonFrame 
 end
-local function updateButton( entry )
-    local button          = entry[VT_BUTTON]
-    local unitId          = entry[VT_UNIT_ID]
-    local unitName        = entry[VT_UNIT_NAME]
-    local membersThreat, totalThreat  = grp:getThreatStats( unitName )
-    local damageTaken, damageDone     = grp:getDamageStats( unitName )
-    local HealingReceived             = grp:getHealingStats( unitName)
-
-    SetPortraitTexture( button.Portrait, unitId )
-    button.Name:SetText( unitName )
-    
-    local dmgStr = sprintf("Damage taken %d", damageTaken)
-    button.Damage:SetText("")
-    button.Damage:SetText( dmgStr )
-
-    -- local threatStr = sprintf( "Threat: "..red.." %d%%", threatRatio)
-    local relativeThreat = 0
-    if totalThreat ~= 0 then
-      relativeThreat = membersThreat/totalThreat
-    end
-    local threatStr = sprintf( "Threat:  %0.2f%%", relativeThreat * 100)
-
-    button.Threat:SetText( "" )
-    button.Threat:SetText( threatStr )
-end
+    ------- CREATES THE FRAME FOR THE PORTRAIT ICONS ---------------
 function btn:createIconStack()
-
   local groupCount = grp:getTotalMemberCount()
+  local sortedTable = grp:sortAddonTable( VT_ACCUM_THREAT_VALUE )
 
-    ------- CREATE THE FRAME FOR THE PORTRAIT ICONS ---------------
-    local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
-    f:SetSize(BUTTON_WIDTH+10,BUTTON_HEIGHT*groupCount+28)
-    f.TitleText:SetText("Threat Stack")
+  local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
+    f:SetSize( BUTTON_WIDTH+10, BUTTON_HEIGHT*groupCount+28)
+    f.TitleText:SetText("Threat Status")
   ------------ SET, SAVE, and GET FRAME POSITION ---------------------
     f:SetPoint( framePosition[1], 
                 framePosition[2], 
@@ -105,42 +113,29 @@ function btn:createIconStack()
       framePosition = {f:GetPoint()}
     end)
 
-    ---- CREATE A PORTRAIT BUTTON FOR EACH PARTY MEMBER -------
-    f.portraitButtons = {} 
-    -- local addonParty = grp:getAddonPartyTable()
-
-    local sortedTable = grp:sortAddonTable( VT_ACCUM_THREAT_VALUE)
-    
-
     for i, entry in ipairs( sortedTable ) do
-      f.portraitButtons[i] = createEmptyButton(f)
-      f.portraitButtons[i]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
-      f.portraitButtons[i]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+        local unitName = entry[VT_UNIT_NAME]
+        local unitId   = entry[VT_UNIT_NAME]
 
-      entry[VT_BUTTON] = f.portraitButtons[i]
-      updateButton( entry )
+        entry[VT_UNIT_PORTRAIT] = createEmptyButton(f)
+        entry[VT_UNIT_PORTRAIT]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
+        entry[VT_UNIT_PORTRAIT]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+
+        SetPortraitTexture( entry[VT_UNIT_PORTRAIT].Portrait, unitId )
+        entry[VT_UNIT_PORTRAIT].Name:SetText( unitName )
+
+        local r, g, b = getClassColor( unitId )
+        entry[VT_UNIT_PORTRAIT].StatusBar:SetStatusBarColor(r, g, b )
+        
+        local membersThreat, totalThreat  = grp:getThreatStats( unitName )
+        local relativeThreat = 0
+        if totalThreat ~= 0 then
+          relativeThreat = membersThreat/totalThreat
+          entry[VT_UNIT_PORTRAIT].StatusBar:SetStatusBarColor(1, 0.5, 0.25 )      -- 0, 1, 0 is healthbar green
+          -- entry[VT_UNIT_PORTRAIT]:SetAlpha( 1.0 )
+        end
+
+        entry[VT_UNIT_PORTRAIT].StatusBar:SetSmoothedValue( relativeThreat )
     end
     return f
-end
-function btn:updateButton( entry )
-  local button          = entry[VT_BUTTON]
-  local unitId          = entry[VT_UNIT_ID]
-  local unitName        = entry[VT_UNIT_NAME]
-  local membersThreat, totalThreat  = grp:getThreatStats( unitName )
-  local damageTaken, damageDone     = grp:getDamageStats( unitName )
-  local HealingReceived             = grp:getHealingStats( unitName)
-  
-  local dmgStr = sprintf("Damage taken %d", damageTaken)
-  button.Damage:SetText("")
-  button.Damage:SetText( dmgStr )
-
-  -- local threatStr = sprintf( "Threat: "..red.." %d%%", threatRatio)
-  local relativeThreat = 0
-  if totalThreat ~= 0 then
-    relativeThreat = membersThreat/totalThreat
-  end
-  local threatStr = sprintf( "Threat:  %0.2f%%", relativeThreat * 100)
-
-  button.Threat:SetText( "" )
-  button.Threat:SetText( threatStr )
-end
+  end  

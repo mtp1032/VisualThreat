@@ -48,3 +48,4 @@ function core:printChatMsg( msg )
 end
 
 framePositionSaved = false
+threatFramePositionSaved = false
