@@ -28,18 +28,35 @@ local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
 local VT_UNIT_PORTRAIT           = grp.VT_UNIT_PORTRAIT
 local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
+local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
+local VT_ACCUM_DAMAGE_DONE       = grp.VT_ACCUM_DAMAGE_DONE
+local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 
 local _EMPTY                     = grp._EMPTY
 
 local red = "\124cFFFF0000"
 btn.threatIconStack = nil
+btn.healsIconStack = nil
+btn.damageIconStack = nil
 
-local BAR_WIDTH    = 200
-local BAR_HEIGHT    = 20
+local BAR_WIDTH       = 200
+local BAR_HEIGHT      = 20
+
+btn.THREAT_GENERATED  = 1
+btn.HEALS_RECEIVED    = 2
+btn.DAMAGE_TAKEN      = 3
+
+local THREAT_GENERATED    = btn.THREAT_GENERATED
+local HEALS_RECEIVED      = btn.HEALS_RECEIVED
+local DAMAGE_TAKEN      = btn.DAMAGE_TAKEN
+
+local stackNames = { "Threat Status", "Heals Received", "Damage Taken" }
+
+
 
 local function getClassColor( unitId )
-  local unitGUID = UnitGUID( unitId )
-  local _, localizedClassName = GetPlayerInfoByGUID( unitGUID )
+  local guid = UnitGUID( unitId )
+  local _, localizedClassName = GetPlayerInfoByGUID( guid )
   return GetClassColor( localizedClassName )
 end
 
@@ -92,50 +109,97 @@ local function createEmptyButton(parent)
 
   return buttonFrame 
 end
+
     ------- CREATES THE FRAME FOR THE PORTRAIT ICONS ---------------
-function btn:createIconStack()
+function btn:createIconStack( stackType )
+
   local groupCount = grp:getTotalMemberCount()
-  local sortedTable = grp:sortAddonTable( VT_ACCUM_THREAT_VALUE )
 
   local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
     f:SetSize( BUTTON_WIDTH+10, BUTTON_HEIGHT*groupCount+28)
-    f.TitleText:SetText("Threat Status")
+    f.TitleText:SetText( stackNames[stackType])
+    f:SetMovable(true)
+
   ------------ SET, SAVE, and GET FRAME POSITION ---------------------
+  local sortedTable = {}
+  if stackType == THREAT_GENERATED then
+    sortedTable = grp:sortAddonTable( VT_ACCUM_THREAT_VALUE )
+
     f:SetPoint( framePosition[1], 
                 framePosition[2], 
                 framePosition[3], 
                 framePosition[4], 
                 framePosition[5] )
-    f:SetMovable(true)
     f:SetScript("OnMouseDown",f.StartMoving)
     f:SetScript("OnMouseUp", function(self)
       f:StopMovingOrSizing()
       framePosition = {f:GetPoint()}
     end)
+  end
+  if stackType == HEALS_RECEIVED then
+    sortedTable = grp:sortAddonTable( VT_ACCUM_HEALING_RECEIVED )
 
-    for i, entry in ipairs( sortedTable ) do
-        local unitName = entry[VT_UNIT_NAME]
-        local unitId   = entry[VT_UNIT_NAME]
+    f:SetPoint( healsFramePosition[1], 
+                healsFramePosition[2], 
+                healsFramePosition[3], 
+                healsFramePosition[4], 
+                healsFramePosition[5] )
+    f:SetScript("OnMouseDown",f.StartMoving)
+    f:SetScript("OnMouseUp", function(self)
+      f:StopMovingOrSizing()
+      healsFramePosition = {f:GetPoint()}
+    end)
+  end
+  if stackType == DAMAGE_TAKEN then
+    sortedTable = grp:sortAddonTable( VT_ACCUM_DAMAGE_TAKEN )
 
-        entry[VT_UNIT_PORTRAIT] = createEmptyButton(f)
-        entry[VT_UNIT_PORTRAIT]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
-        entry[VT_UNIT_PORTRAIT]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+    f:SetPoint( damageFramePosition[1], 
+                damageFramePosition[2], 
+                damageFramePosition[3], 
+                damageFramePosition[4], 
+                damageFramePosition[5] )
+    f:SetScript("OnMouseDown",f.StartMoving)
+    f:SetScript("OnMouseUp", function(self)
+      f:StopMovingOrSizing()
+      damageFramePosition = {f:GetPoint()}
+    end)
+  end
 
-        SetPortraitTexture( entry[VT_UNIT_PORTRAIT].Portrait, unitId )
-        entry[VT_UNIT_PORTRAIT].Name:SetText( unitName )
+  for i, entry in ipairs( sortedTable ) do
 
-        local r, g, b = getClassColor( unitId )
-        entry[VT_UNIT_PORTRAIT].StatusBar:SetStatusBarColor(r, g, b )
+    local unitName = entry[VT_UNIT_NAME]
+    local unitId   = entry[VT_UNIT_ID]
+
+    entry[VT_UNIT_PORTRAIT] = createEmptyButton(f)
+    entry[VT_UNIT_PORTRAIT]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
+    entry[VT_UNIT_PORTRAIT]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+
+    SetPortraitTexture( entry[VT_UNIT_PORTRAIT].Portrait, unitId )
+    entry[VT_UNIT_PORTRAIT].Name:SetText( unitName )
+
+    local r, g, b = getClassColor( unitId )
+    entry[VT_UNIT_PORTRAIT].StatusBar:SetStatusBarColor(r, g, b )
         
-        local membersThreat, totalThreat  = grp:getThreatStats( unitName )
-        local relativeThreat = 0
-        if totalThreat ~= 0 then
-          relativeThreat = membersThreat/totalThreat
-          entry[VT_UNIT_PORTRAIT].StatusBar:SetStatusBarColor(1, 0.5, 0.25 )      -- 0, 1, 0 is healthbar green
-          -- entry[VT_UNIT_PORTRAIT]:SetAlpha( 1.0 )
+    local relativeValue = 0
+    if stackType == THREAT_GENERATED then
+      local membersThreat, totalThreat  = grp:getThreatStats( unitName )
+      if totalThreat ~= 0 then
+        relativeValue = membersThreat/totalThreat  
+      end 
+    end       
+    if stackType == HEALS_RECEIVED then
+        local membersHealing, totalHealing = grp:getHealingStats( unitName )
+        if totalHealing ~= 0 then
+          relativeValue = membersHealing / totalHealing
         end
-
-        entry[VT_UNIT_PORTRAIT].StatusBar:SetSmoothedValue( relativeThreat )
     end
-    return f
-  end  
+    if stackType == DAMAGE_TAKEN then
+        local membersDamage, totalDamage = grp:getDamageTakenStats( unitName )
+        if totalDamage ~= 0 then
+          relativeValue = membersDamage / totalDamage
+        end
+    end
+    entry[VT_UNIT_PORTRAIT].StatusBar:SetSmoothedValue( relativeValue )
+  end
+  return f
+end  

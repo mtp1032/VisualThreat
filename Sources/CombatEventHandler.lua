@@ -27,6 +27,10 @@ local SPELL_NAME        = 13
 
 ceh.IN_COMBAT = true
 
+local THREAT_GENERATED    = btn.THREAT_GENERATED
+local HEALS_RECEIVED  = btn.HEALS_RECEIVED
+local DAMAGE_TAKEN    = btn.DAMAGE_TAKEN
+
 function ceh:handleEvent( stats )
 
     if not ceh.IN_COMBAT then
@@ -51,10 +55,29 @@ function ceh:handleEvent( stats )
         subEvent ~= "SWING_DAMAGE" and
         subEvent ~= "SPELL_DAMAGE" and
         subEvent ~= "SPELL_PERIODIC_DAMAGE" and 
+        subEvent ~= "SPELL_CAST_START" and
         subEvent ~= "SPELL_CAST_SUCCESS" and
+        subEvent ~= "SPELL_INTERRUPT" and
         subEvent ~= "RANGE_DAMAGE" then
             return
     end
+
+    if subEvent == "SPELL_CAST_START" then
+        -- if the target is a group member, then s/he's been targeted
+        -- by the caster.
+        -- E:where( sourceName.." casting "..tostring(stats[13]))
+        -- if grp:inPlayersParty( targetName ) then
+        --     local targetUnitId = grp:getUnitIdByName( targetName )
+
+        --     local spell, _, _, _, _, _, _, notInterruptible = UnitCastingInfo( targetUnitId )
+
+        --     if notInterruptible == false then
+        --         local s = sprintf("%s cast by %s is interruptible. Interrupt Now!", stats[13], sourceName )
+        --         msg:postMsg( s )
+        --     end
+        -- end
+    end
+
     -------------- DAMAGE TAKEN AND DAMAGE DONE ---------------
     if  subEvent == "SWING_DAMAGE" or
         subEvent == "SPELL_DAMAGE" or
@@ -118,21 +141,23 @@ function ceh:handleEvent( stats )
         end
     end
 
-    -- r = grp:initAddonParty()
-    -- if r[1] == STATUS_FAILURE then
-    --     msg:postResult( r )
-    --     return
-    -- end
     if btn.threatIconStack then
         btn.threatIconStack:Hide()
     end
-    btn.threatIconStack = btn:createIconStack()
-    -- btn.updatePortraitButtons()
-    -- btn.threatIconStack:Show()
+    btn.threatIconStack = btn:createIconStack(THREAT_GENERATED)
+    btn.threatIconStack:Show()
 
-    -- btn.threatIconStack:Hide()
-    -- btn.threatIconStack = btn:createIconStack()
-    -- btn.updatePortraitButtons()
-    -- btn.threatIconStack:Show()
-    return
+    if btn.healsIconStack then
+        btn.healsIconStack:Hide()
+    end
+    btn.healsIconStack = btn:createIconStack(HEALS_RECEIVED)
+    btn.healsIconStack:Show()
+    
+    if btn.damageIconStack then
+        btn.damageIconStack:Hide()
+    end
+    btn.damageIconStack = btn:createIconStack( DAMAGE_TAKEN )
+    btn.damageIconStack:Show()
+
+return
 end

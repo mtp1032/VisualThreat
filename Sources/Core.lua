@@ -47,5 +47,8 @@ function core:printChatMsg( msg )
 	DEFAULT_CHAT_FRAME:AddMessage( msg, 1.0, 1.0, 0.0 )
 end
 
-framePositionSaved = false
-threatFramePositionSaved = false
+framePositionSaved          = false
+threatFramePositionSaved    = false
+
+damageFramePositionSaved    = false
+healsFramePositionSaved     = false
