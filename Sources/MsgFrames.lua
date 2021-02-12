@@ -148,6 +148,7 @@ local function createTopFrame( frameName, width, height, red, blue, green )
     f:SetSize( width, height )
 	return f
 end
+
 local function createTextDisplay(f)
     f.SF = CreateFrame("ScrollFrame", "$parent_DF", f, "UIPanelScrollFrameTemplate")
     f.SF:SetPoint("TOPLEFT", f, 12, -30)

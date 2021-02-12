@@ -48,11 +48,64 @@ btn.DAMAGE_TAKEN      = 3
 
 local THREAT_GENERATED    = btn.THREAT_GENERATED
 local HEALS_RECEIVED      = btn.HEALS_RECEIVED
-local DAMAGE_TAKEN      = btn.DAMAGE_TAKEN
+local DAMAGE_TAKEN        = btn.DAMAGE_TAKEN
 
 local stackNames = { "Threat Status", "Heals Received", "Damage Taken" }
 
+local function popUpStats( unitName )
 
+  local f = CreateFrame("Button", "Current Stats", UIParent, "TooltipBackdropTemplate" )
+  f:SetBackdropBorderColor(0.5,0.5,0.5)
+  f:SetPoint("CENTER", 0, 0)
+  f:SetSize(BUTTON_WIDTH, 120)
+
+  f.Name = f:CreateFontString(nil,"ARTWORK", "GameFontNormalLarge")
+  f.Name:SetPoint("TOP",0,-10)
+  f.Name:SetJustifyH("LEFT")
+  f.Name:SetText( unitName )
+
+  local str = nil
+  local taken, total = grp:getThreatStats(unitName)
+  if total > 0 then
+    local relative= (taken/total)*100
+    str = sprintf("Threat Generated: %d (%1.f%%)", taken, relative )
+    f.Threat = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+    f.Threat:SetPoint("TOPLEFT", 30 ,-30 )
+    f.Threat:SetJustifyH("LEFT")
+    f.Threat:SetText(str)
+  end
+
+  local taken, total = grp:getDamageStats(unitName)
+  if total > 0 then
+    local relative= (taken/total)*100
+    str = sprintf("Damage Taken: %d (%1.f%%)", taken, relative )
+    f.Damage = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+    f.Damage:SetPoint("TOPLEFT", 30, -50)
+    f.Damage:SetJustifyH("LEFT")
+    f.Damage:SetText( str )
+  end
+
+  local taken, total = grp:getHealingStats(unitName)
+  if total > 0 then
+    local relative= (taken/total)*100
+    str = sprintf("Healing Received: %d (%1.f%%)", taken, relative )
+    f.Heals = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+    f.Heals:SetPoint("TOPLEFT", 30, -70)
+    f.Heals:SetJustifyH("LEFT")
+    f.Heals:SetText(str)
+  end
+
+  local taken, total = grp:getDamageDoneStats(unitName)
+  if total > 0 then
+    local relative= (taken/total)*100
+    str = sprintf("DamageDone: %d (%1.f%%", taken, relative )
+    f.DamageDone = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
+    f.DamageDone:SetPoint("TOPLEFT", 30, -90)
+    f.DamageDone:SetJustifyH("LEFT")
+    f.DamageDone:SetText(str )
+  end
+  return f
+end
 
 local function getClassColor( unitId )
   local guid = UnitGUID( unitId )
@@ -81,11 +134,9 @@ end
 --     f.statusBar:SetSmoothedValue( val ) 
 -- end)
 
+local function createEmptyButton(parent, frameName )
 
--- called  by createIconStack()
-local function createEmptyButton(parent)
-
-  local buttonFrame = CreateFrame("Button",nil,parent,"TooltipBackdropTemplate")
+  local buttonFrame = CreateFrame("Button", frameName, parent,"TooltipBackdropTemplate")
   buttonFrame:SetBackdropBorderColor(0.5,0.5,0.5)
   -- buttonFrame:SetAlpha( 0.5 )
 
@@ -115,12 +166,13 @@ function btn:createIconStack( stackType )
 
   local groupCount = grp:getTotalMemberCount()
 
-  local f = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
+  local f = CreateFrame("Frame", "IconStack", UIParent, "BasicFrameTemplate")
+   
     f:SetSize( BUTTON_WIDTH+10, BUTTON_HEIGHT*groupCount+28)
     f.TitleText:SetText( stackNames[stackType])
     f:SetMovable(true)
 
-  ------------ SET, SAVE, and GET FRAME POSITION ---------------------
+    ------------ SET, SAVE, and GET FRAME POSITION ---------------------
   local sortedTable = {}
   if stackType == THREAT_GENERATED then
     sortedTable = grp:sortAddonTable( VT_ACCUM_THREAT_VALUE )
@@ -138,7 +190,6 @@ function btn:createIconStack( stackType )
   end
   if stackType == HEALS_RECEIVED then
     sortedTable = grp:sortAddonTable( VT_ACCUM_HEALING_RECEIVED )
-
     f:SetPoint( healsFramePosition[1], 
                 healsFramePosition[2], 
                 healsFramePosition[3], 
@@ -169,10 +220,44 @@ function btn:createIconStack( stackType )
 
     local unitName = entry[VT_UNIT_NAME]
     local unitId   = entry[VT_UNIT_ID]
+    local displayFrame = {}
+    
+    local frameName = nil
+    if stackType == DAMAGE_TAKEN then
+      frameName = "DAMAGE TAKEN"
+    end
+    if stackType == HEALS_RECEIVED then
+      frameName = "HEALS RECEIVED"
+    end
+    if stackType == THREAT_GENERATED then
+      frameName = "THREAT GENERATED"
+    end
 
-    entry[VT_UNIT_PORTRAIT] = createEmptyButton(f)
+    entry[VT_UNIT_PORTRAIT] = createEmptyButton(f, frameName )
     entry[VT_UNIT_PORTRAIT]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
     entry[VT_UNIT_PORTRAIT]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+    if i > 1 then
+      entry[VT_UNIT_PORTRAIT]:SetAlpha( 0.2)
+    end
+
+    entry[VT_UNIT_PORTRAIT]:SetScript("OnEnter", function( self, ... )
+        local frameName = GetMouseFocus():GetName()
+        local statType = 0
+        if frameName == "DAMAGE TAKEN" then
+          statType = DAMAGE_TAKEN
+        elseif frameName == "HEALS RECEIVED" then
+          statType = HEALS_RECEIVED
+        else
+          statType = THREAT_GENERATED
+        end
+        displayFrame = popUpStats( entry, statType )
+    end)
+    entry[VT_UNIT_PORTRAIT]:SetScript("OnLeave", function( self, ... )
+      displayFrame:Hide()
+    end)
+    entry[VT_UNIT_PORTRAIT]:SetScript("OnClick", function( self, button )
+      displayFrame:Hide()
+    end)
 
     SetPortraitTexture( entry[VT_UNIT_PORTRAIT].Portrait, unitId )
     entry[VT_UNIT_PORTRAIT].Name:SetText( unitName )
@@ -182,9 +267,9 @@ function btn:createIconStack( stackType )
         
     local relativeValue = 0
     if stackType == THREAT_GENERATED then
-      local membersThreat, totalThreat  = grp:getThreatStats( unitName )
-      if totalThreat ~= 0 then
-        relativeValue = membersThreat/totalThreat  
+      local memberTotalThreat, groupTotalThreat  = grp:getThreatStats( unitName )
+      if totalTotalThreat ~= 0 then
+        relativeValue = memberTotalThreat/groupTotalThreat  
       end 
     end       
     if stackType == HEALS_RECEIVED then
