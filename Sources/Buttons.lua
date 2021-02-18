@@ -21,12 +21,12 @@ local L = VisualThreat.L
 local E = errors 
 local sprintf = _G.string.format 
 
-local BUTTON_WIDTH = 250
-local BUTTON_HEIGHT = 50
+local BUTTON_WIDTH = 260  -- was 250
+local BUTTON_HEIGHT = 35 -- was 50
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
-local VT_UNIT_PORTRAIT           = grp.VT_UNIT_PORTRAIT
+local VT_UNIT_FRAME           = grp.VT_UNIT_FRAME
 local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
 local VT_ACCUM_DAMAGE_DONE       = grp.VT_ACCUM_DAMAGE_DONE
@@ -50,69 +50,119 @@ local THREAT_GENERATED    = btn.THREAT_GENERATED
 local HEALS_RECEIVED      = btn.HEALS_RECEIVED
 local DAMAGE_TAKEN        = btn.DAMAGE_TAKEN
 
-local stackNames = { "Threat Status", "Heals Received", "Damage Taken" }
+-- frameName = GetMouseFocus():GetName())
+
+
+local stackNames = { "Threat Status (% Total)", "Heals Received (% Total)", "Damage Taken (% Total)" }
+
+
+--[[ 
+
+How to get the popup to popup when the mouse is over one of the
+Blizzard party frames:
+
+Note party frame names are named "PartyMemberFrameN" where N - 1, 2, 3, or 4
+
+Steps:
+1)  Use GetMouseFocus():GetName() to obtain the name of the unitframe over which the
+    mouse is hovering.
+2)  Parse the frame name for the member id. For example, PartyMemberFrame3 
+    has a unitId of party3. 
+3)  Get the UserName using grp:getMemberNameById( unitId
+4)  Pass the user name to the PopUp window.
+ ]]
+ local function drawLine(yPos, f)
+	local lineFrame = CreateFrame("FRAME", nil, f )
+	lineFrame:SetPoint("CENTER", -10, yPos )
+	lineFrame:SetSize( BUTTON_WIDTH - 10, BUTTON_WIDTH - 10 )
+	
+	local line = lineFrame:CreateLine()
+	line:SetColorTexture(.5, .5, .5, 1) -- Grey per https://wow.gamepedia.com/Power_colors
+	line:SetThickness(1)
+	line:SetStartPoint("TOPLEFT",10, -10)
+	line:SetEndPoint("TOPRIGHT", 10, -10 )
+	lineFrame:Show() 
+ end
 
 local function popUpStats( unitName )
 
-  local f = CreateFrame("Button", "Current Stats", UIParent, "TooltipBackdropTemplate" )
+  local f = CreateFrame("Button", "Current Stats", nil, "TooltipBackdropTemplate" )
   f:SetBackdropBorderColor(0.5,0.5,0.5)
-  f:SetPoint("CENTER", 0, 0)
+  f:SetPoint("RIGHT", -100, -100)
   f:SetSize(BUTTON_WIDTH, 120)
 
-  f.Name = f:CreateFontString(nil,"ARTWORK", "GameFontNormalLarge")
-  f.Name:SetPoint("TOP",0,-10)
+  -- f.Name = f:CreateFontString(nil,"ARTWORK", "GameFontHighlightLarge")
+  f.Name = f:CreateFontString(nil,"ARTWORK", "GameFontNormal")
+  f.Name:SetPoint("TOPLEFT",10,-8)
   f.Name:SetJustifyH("LEFT")
   f.Name:SetText( unitName )
+  local partyTable = grp:getAddonPartyTable()
+  for _, entry in ipairs( partyTable ) do
+    if entry[VT_UNIT_NAME] == unitName then
+      local unitGuid = UnitGUID( entry[VT_UNIT_ID])
+      local class, _, race, gender, name, realm = GetPlayerInfoByGUID( unitGuid )
+      local level = UnitEffectiveLevel( entry[VT_UNIT_ID] )
+      local ownerName = grp:getOwnerByPetName( unitName )
+      local _, faction = UnitFactionGroup( entry[VT_UNIT_ID])
+      if ownerName then
+        f.Name:SetFormattedText( "%s - %s's Pet", unitName, ownerName, level )
+      else
+        f.Name:SetFormattedText( "%s - level %d %s (%s)", unitName, level, class, faction )
+      end
+    end
+  end
 
+  drawLine( -80, f )
+  
   local str = nil
   local taken, total = grp:getThreatStats(unitName)
   if total > 0 then
     local relative= (taken/total)*100
     str = sprintf("Threat Generated: %d (%1.f%%)", taken, relative )
-    f.Threat = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-    f.Threat:SetPoint("TOPLEFT", 30 ,-30 )
+    f.Threat = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    f.Threat:SetPoint("TOPLEFT", 10 ,-40 )
     f.Threat:SetJustifyH("LEFT")
     f.Threat:SetText(str)
   end
-
-  local taken, total = grp:getDamageStats(unitName)
+  local taken, total = grp:getDamageTakenStats(unitName)
   if total > 0 then
     local relative= (taken/total)*100
     str = sprintf("Damage Taken: %d (%1.f%%)", taken, relative )
-    f.Damage = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-    f.Damage:SetPoint("TOPLEFT", 30, -50)
+    f.Damage = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    f.Damage:SetPoint("TOPLEFT", 10, -60)
     f.Damage:SetJustifyH("LEFT")
     f.Damage:SetText( str )
   end
-
   local taken, total = grp:getHealingStats(unitName)
   if total > 0 then
     local relative= (taken/total)*100
     str = sprintf("Healing Received: %d (%1.f%%)", taken, relative )
-    f.Heals = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-    f.Heals:SetPoint("TOPLEFT", 30, -70)
+    f.Heals = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    f.Heals:SetPoint("TOPLEFT", 10, -80)
     f.Heals:SetJustifyH("LEFT")
     f.Heals:SetText(str)
   end
-
   local taken, total = grp:getDamageDoneStats(unitName)
   if total > 0 then
     local relative= (taken/total)*100
     str = sprintf("DamageDone: %d (%1.f%%", taken, relative )
-    f.DamageDone = f:CreateFontString(nil,"ARTWORK","GameFontHighlight")
-    f.DamageDone:SetPoint("TOPLEFT", 30, -90)
+    f.DamageDone = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+    f.DamageDone:SetPoint("TOPLEFT", 10, -100)
     f.DamageDone:SetJustifyH("LEFT")
     f.DamageDone:SetText(str )
   end
   return f
 end
 
+-- PartyMemberFrame1:SetScript("OnEnter", function( self, ... )
+--   popUpStats( Predator)
+-- end)
+
 local function getClassColor( unitId )
   local guid = UnitGUID( unitId )
   local _, localizedClassName = GetPlayerInfoByGUID( guid )
   return GetClassColor( localizedClassName )
 end
-
 local function createStatusBar( parent )
 
   -- this frame creates a background for the status bar
@@ -130,7 +180,6 @@ end
 -- ******************* UNIT TESTING ******************************
 -- C_Timer.NewTicker(0.5, function()
 --     local val = random(100)/100
---     E:where( tostring( val ))
 --     f.statusBar:SetSmoothedValue( val ) 
 -- end)
 
@@ -144,25 +193,28 @@ local function createEmptyButton(parent, frameName )
   buttonFrame.Portrait:SetSize(BUTTON_HEIGHT-8,BUTTON_HEIGHT-8)
   buttonFrame.Portrait:SetPoint("LEFT",4,0)
 
-  buttonFrame.Name = buttonFrame:CreateFontString(nil,"ARTWORK", "GameFontNormal")
+  buttonFrame.Name = buttonFrame:CreateFontString(nil,"ARTWORK", "GameFontNormalSmall")
   buttonFrame.Name:SetPoint("TOPLEFT", buttonFrame.Portrait, "TOPRIGHT",6,-4)
   buttonFrame.Name:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, 0 )
   buttonFrame.Name:SetJustifyH("LEFT")
 
   -- creates a status bar of the player's class color.
   buttonFrame.StatusBar = createStatusBar(buttonFrame)
-  buttonFrame.StatusBar:SetPoint("TOPLEFT", buttonFrame.Portrait, "RIGHT",4,-4)
-  --buttonFrame.StatusBar:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, 0 )
-  buttonFrame.StatusBar:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, -20 )
+  buttonFrame.StatusBar:SetPoint("TOPLEFT", buttonFrame.Portrait, "RIGHT",4,-4) -- original
+  buttonFrame.StatusBar:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, -10 )
+  -- buttonFrame.StatusBar:SetPoint("BOTTOMRIGHT",buttonFrame, "RIGHT",-4, -20 ) -- original
 
   Mixin(buttonFrame.StatusBar, SmoothStatusBarMixin)
   buttonFrame.StatusBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
 
   return buttonFrame 
 end
-
     ------- CREATES THE FRAME FOR THE PORTRAIT ICONS ---------------
 function btn:createIconStack( stackType )
+
+  --------- DEBUG -------
+  if stackType == HEALS_RECEIVED then return end
+  ------- END DEBUG -----
 
   local groupCount = grp:getTotalMemberCount()
 
@@ -220,9 +272,8 @@ function btn:createIconStack( stackType )
 
     local unitName = entry[VT_UNIT_NAME]
     local unitId   = entry[VT_UNIT_ID]
-    local displayFrame = {}
+    local popUpFrame = {}
     
-    local frameName = nil
     if stackType == DAMAGE_TAKEN then
       frameName = "DAMAGE TAKEN"
     end
@@ -233,58 +284,76 @@ function btn:createIconStack( stackType )
       frameName = "THREAT GENERATED"
     end
 
-    entry[VT_UNIT_PORTRAIT] = createEmptyButton(f, frameName )
-    entry[VT_UNIT_PORTRAIT]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
-    entry[VT_UNIT_PORTRAIT]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
-    if i > 1 then
-      entry[VT_UNIT_PORTRAIT]:SetAlpha( 0.2)
-    end
-
-    entry[VT_UNIT_PORTRAIT]:SetScript("OnEnter", function( self, ... )
-        local frameName = GetMouseFocus():GetName()
-        local statType = 0
-        if frameName == "DAMAGE TAKEN" then
-          statType = DAMAGE_TAKEN
-        elseif frameName == "HEALS RECEIVED" then
-          statType = HEALS_RECEIVED
-        else
-          statType = THREAT_GENERATED
-        end
-        displayFrame = popUpStats( entry, statType )
+    entry[VT_UNIT_FRAME] = createEmptyButton(f, frameName )
+    entry[VT_UNIT_FRAME]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
+    entry[VT_UNIT_FRAME]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
+    -- if i > 1 then
+    --   entry[VT_UNIT_FRAME]:SetAlpha( 0.2)
+    -- end
+    entry[VT_UNIT_FRAME]:SetScript("OnEnter", function( self, ... )
+        local frame = GetMouseFocus()
+        local frameName = frame:GetName()
+        popUpFrame = popUpStats( entry[VT_UNIT_NAME] )
     end)
-    entry[VT_UNIT_PORTRAIT]:SetScript("OnLeave", function( self, ... )
-      displayFrame:Hide()
+    entry[VT_UNIT_FRAME]:SetScript("OnLeave", function( self, ... )
+      popUpFrame:Hide()
     end)
-    entry[VT_UNIT_PORTRAIT]:SetScript("OnClick", function( self, button )
-      displayFrame:Hide()
+    entry[VT_UNIT_FRAME]:SetScript("OnClick", function( self, button )
+      popUpFrame:Hide()
     end)
 
-    SetPortraitTexture( entry[VT_UNIT_PORTRAIT].Portrait, unitId )
-    entry[VT_UNIT_PORTRAIT].Name:SetText( unitName )
-
+    SetPortraitTexture( entry[VT_UNIT_FRAME].Portrait, unitId )
     local r, g, b = getClassColor( unitId )
-    entry[VT_UNIT_PORTRAIT].StatusBar:SetStatusBarColor(r, g, b )
+    entry[VT_UNIT_FRAME].StatusBar:SetStatusBarColor(r, g, b )
         
-    local relativeValue = 0
+        ---------------------- THREAT GENERATE ----------------------------
     if stackType == THREAT_GENERATED then
+      local relativeThreat = 0
       local memberTotalThreat, groupTotalThreat  = grp:getThreatStats( unitName )
-      if totalTotalThreat ~= 0 then
-        relativeValue = memberTotalThreat/groupTotalThreat  
-      end 
-    end       
+      if groupTotalThreat ~= 0 then
+        relativeThreat = memberTotalThreat/groupTotalThreat  
+      end
+
+      if relativeThreat == 0 then
+        entry[VT_UNIT_FRAME].Name:SetFormattedText( "%s", unitName )
+      else
+        entry[VT_UNIT_FRAME].Name:SetFormattedText( "%s: %0.1f%%", unitName, relativeThreat * 100 )
+      end
+
+      entry[VT_UNIT_FRAME].StatusBar:SetSmoothedValue( relativeThreat )
+    end  
+    ------------------------  HEALING RECEIVED ---------------------
     if stackType == HEALS_RECEIVED then
-        local membersHealing, totalHealing = grp:getHealingStats( unitName )
-        if totalHealing ~= 0 then
-          relativeValue = membersHealing / totalHealing
-        end
+      local relativeHealing = 0
+      local memberTotalHealing, groupTotalHealing  = grp:getHealingStats( unitName )
+      if groupTotalHealing ~= 0 then
+        relativeHealing = memberTotalHealing/groupTotalHealing 
+      end
+
+      if relativeHealing == 0 then
+        entry[VT_UNIT_FRAME].Name:SetFormattedText( "%s", unitName )
+      else
+        entry[VT_UNIT_FRAME].Name:SetFormattedText( "%s: %0.1f%%", unitName, relativeHealing * 100 )
+      end
+
+      entry[VT_UNIT_FRAME].StatusBar:SetSmoothedValue( relativeHealing )
     end
+    ---------------------- DAMAGE TAKEN ----------------------------
     if stackType == DAMAGE_TAKEN then
-        local membersDamage, totalDamage = grp:getDamageTakenStats( unitName )
-        if totalDamage ~= 0 then
-          relativeValue = membersDamage / totalDamage
-        end
-    end
-    entry[VT_UNIT_PORTRAIT].StatusBar:SetSmoothedValue( relativeValue )
+      local relativeDamage = 0
+      local memberTotalDamage, groupTotalDamage  = grp:getDamageTakenStats( unitName )
+      if groupTotalDamage ~= 0 then
+        relativeDamage = memberTotalDamage/groupTotalDamage  
+      end
+
+      if relativeDamage == 0 then
+        entry[VT_UNIT_FRAME].Name:SetFormattedText( "%s", unitName )
+      else
+        entry[VT_UNIT_FRAME].Name:SetFormattedText( "%s: %0.1f%%", unitName, relativeDamage * 100 )
+      end
+
+      entry[VT_UNIT_FRAME].StatusBar:SetSmoothedValue( relativeDamage )
+    end  
   end
   return f
 end  

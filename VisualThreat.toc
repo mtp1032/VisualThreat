@@ -19,7 +19,7 @@ Sources\MsgFrames.lua
 Sources\GroupServices.lua
 Sources\Buttons.lua
 Sources\CombatEventHandler.lua
-Sources\ThreatEventHandler.lua
+##Sources\ThreatEventHandler.lua
 Sources\Metrics.lua
 Sources\EventDispatcher.lua
 ##--------------------------------------------

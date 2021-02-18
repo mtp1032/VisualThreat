@@ -30,12 +30,7 @@ function tev:updateThreatStatus( mobId )
 
         local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( unitId, mobId )
 
-        if threatValue == nil then 
-            threatValue = 0 
-        end
-
-        if threatValue > 0 then
-            grp:setThreatValues( entry[VT_UNIT_NAME], threatValue )
-        end
+        if threatValue == nil then return end 
+        grp:setThreatValues( entry[VT_UNIT_NAME], threatValue )
     end
 end

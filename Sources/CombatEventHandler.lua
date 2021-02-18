@@ -96,12 +96,11 @@ function ceh:handleEvent( stats )
         if grp:inPlayersParty( sourceName ) then
             grp:setDamageDone( sourceName, damage )
         end
-        return
     end
     ------------- HEALING RECEIVED --------------------
     if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
+        -- msg:postMsg( sprintf("%s: %s (%s) healed %s for %d.\n", subEvent, stats[SPELL_NAME], stats[SOURCENAME], stats[TARGETNAME], stats[HEALS_RECEIVED]))
         grp:setHealingReceived( targetName, stats[15] )
-        return
     end
     ------------- PETS SUMMONED AND DISMISSED --------------------
     local spell = string.upper( stats[SPELL_NAME] )
@@ -150,8 +149,8 @@ function ceh:handleEvent( stats )
     if btn.healsIconStack then
         btn.healsIconStack:Hide()
     end
-    btn.healsIconStack = btn:createIconStack(HEALS_RECEIVED)
-    btn.healsIconStack:Show()
+    -- btn.healsIconStack = btn:createIconStack(HEALS_RECEIVED)
+    -- btn.healsIconStack:Show()
     
     if btn.damageIconStack then
         btn.damageIconStack:Hide()

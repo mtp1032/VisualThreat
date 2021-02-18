@@ -45,20 +45,24 @@ eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 eventFrame:RegisterEvent("UNIT_SPELLCAST_START")
 eventFrame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+eventFrame:RegisterEvent("UNIT_SPELLCAST_START")
 
 
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
+
 eventFrame:RegisterEvent("GROUP_JOINED")
 eventFrame:RegisterEvent("GROUP_LEFT")
 eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+
 eventFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
 eventFrame:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
 eventFrame:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
+
 eventFrame:RegisterEvent("PET_DISMISS_START")
-eventFrame:RegisterEvent("UNIT_SPELLCAST_START")
 
 local function OnEvent( self, event, ...)
 
@@ -143,7 +147,7 @@ local function OnEvent( self, event, ...)
     end
     ------------------------------ PLAYER ENTERING WORLD -----------------
     if event == "PLAYER_ENTERING_WORLD" then
-        -- discontinue processing if no blizz party exists.
+        -- return if blizz party does not yet exist
         local r = {STATUS_SUCCESS, nil, nil}
         local exists, partyCount = grp:blizzPartyExists()
         if not exists then
@@ -188,24 +192,23 @@ local function OnEvent( self, event, ...)
             msg:postResult( r )
             return
         end
-
         if btn.threatIconStack then
             btn.threatIconStack:Hide()
         end
         btn.threatIconStack = btn:createIconStack(THREAT_GENERATED)
         btn.threatIconStack:Show()
 
-        if btn.healsIconStack then
-            btn.healsIconStack:Hide()
-        end
-        btn.healsIconStack = btn:createIconStack(HEALS_RECEIVED)
-        btn.healsIconStack:Show()
+        -- if btn.healsIconStack then
+        --     btn.healsIconStack:Hide()
+        -- end
+        -- btn.healsIconStack = btn:createIconStack(HEALS_RECEIVED)
+        -- btn.healsIconStack:Show()
         
-        if btn.damageIconStack then
-            btn.damageIconStack:Hide()
-        end
-        btn.damageIconStack = btn:createIconStack( DAMAGE_TAKEN )
-        btn.damageIconStack:Show()
+        -- if btn.damageIconStack then
+        --     btn.damageIconStack:Hide()
+        -- end
+        -- btn.damageIconStack = btn:createIconStack( DAMAGE_TAKEN )
+        -- btn.damageIconStack:Show()
     end
     --------------------------- GROUP ROSTER UPDATE ---------------------
     if event == "GROUP_ROSTER_UPDATE" then
@@ -224,13 +227,13 @@ local function OnEvent( self, event, ...)
         btn.threatIconStack = btn:createIconStack(THREAT_GENERATED)
         btn.threatIconStack:Show()
 
-        btn.healsIconStack:Hide()
-        btn.healsIconStack = btn:createIconStack( HEALS_RECEIVED )
-        btn.healsIconStack:Show()
+        -- btn.healsIconStack:Hide()
+        -- btn.healsIconStack = btn:createIconStack( HEALS_RECEIVED )
+        -- btn.healsIconStack:Show()
 
-        btn.damageIconStack:Hide()
-        btn.damageIconStack = btn:createIconStack( DAMAGE_TAKEN )
-        btn.damageIconStack:Show()
+        -- btn.damageIconStack:Hide()
+        -- btn.damageIconStack = btn:createIconStack( DAMAGE_TAKEN )
+        -- btn.damageIconStack:Show()
 
         return
     end
@@ -243,7 +246,6 @@ local function OnEvent( self, event, ...)
 
         btn.threatIconStack:Hide()
         btn.threatIconStack = btn:createIconStack(THREAT_GENERATED)
-        -- btn.updatePortraitButtons()
         btn.threatIconStack:Show()
         return
     end    
@@ -273,10 +275,33 @@ local function OnEvent( self, event, ...)
     end
     ---------------------- UNIT THREAT LIST UPDATE ---------------
     if event == "UNIT_THREAT_LIST_UPDATE" then
+
+        -- arg1 can be "player", "target" or "namplateN"
         local exists, count = grp:blizzPartyExists()
         if not exists then return end
-        
-        tev:updateThreatStatus( arg1 )
+               
+        local mobId = arg1
+        -- arg1/mobId can be "player", "target" or "namplateN"
+        if mobId == "player" then
+            return
+        end
+        -- Sum the threat values as we loop through and update each party member's entry
+        local partyMembers = grp:getAddonPartyTable()
+        local partyMembers = grp:getAddonPartyTable()
+        for _, entry in ipairs( partyMembers ) do
+            local unitId = entry[VT_UNIT_ID]
+    
+            local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( unitId, mobId )
+    
+            if threatValue == nil then return end 
+            grp:setThreatValues( entry[VT_UNIT_NAME], threatValue )
+        end
+        if btn.threatIconStack == nil then
+            btn.threatIconStack = btn:createIconStack(THREAT_GENERATED)
+        end
+        btn.threatIconStack:Hide()
+        btn.threatIconStack = btn:createIconStack(THREAT_GENERATED)
+        btn.threatIconStack:Show()
 
         return
     end

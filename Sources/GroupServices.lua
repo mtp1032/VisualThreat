@@ -28,7 +28,7 @@ grp.VT_THREAT_VALUE_RATIO       = 6
 grp.VT_ACCUM_DAMAGE_TAKEN       = 7
 grp.VT_ACCUM_DAMAGE_DONE        = 8
 grp.VT_ACCUM_HEALING_RECEIVED   = 9
-grp.VT_UNIT_PORTRAIT            = 10
+grp.VT_UNIT_FRAME               = 10
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
@@ -41,7 +41,7 @@ local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
 local VT_ACCUM_DAMAGE_DONE       = grp.VT_ACCUM_DAMAGE_DONE
 local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
-local VT_UNIT_PORTRAIT           = grp.VT_UNIT_PORTRAIT
+local VT_UNIT_FRAME              = grp.VT_UNIT_FRAME
 
 -- Indices into the stats table
 grp.SUM_THREAT_VALUE    = 1
@@ -62,7 +62,7 @@ local statsTable = { 0,    -- SUM_THREAT_VALUE
 grp._EMPTY = ""
 local _EMPTY = grp._EMPTY
 
-local _defaultEntry = { _EMPTY, _EMPTY, nil, nil, 0, 0, 0, 0, 0, _EMPTY, _EMPTY}
+local _defaultEntry = { _EMPTY, _EMPTY, nil, nil, 0, 0, 0, 0, 0, _EMPTY }
 
 local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
 local party     = {"party1",    "party2",    "party3",    "party4" }
@@ -116,7 +116,7 @@ local function initializePartyEntry( unitName, unitId, petOwner, mobId )
     --     return nil, E:setResult(sprintf("%s's unitId is nil!\n", unitName), debugstack() ) 
     -- end
 
-    local newEntry = { unitName, unitId, petOwner, mobId, 0,0,0,0,0,_EMPTY, _EMPTY }
+    local newEntry = { unitName, unitId, petOwner, mobId, 0, 0, 0, 0, 0, _EMPTY }
     return newEntry, r
 end
 function grp:insertPartyEntry( unitName, unitId, OwnerName, mobId )    
@@ -321,6 +321,36 @@ function grp:getPetByOwnerName( memberName )
     end
     return petName
 end
+function grp:getMemberNameById( unitId )
+    if #addonParty == 0 then return nil end
+
+    for _, entry in ipairs( addonParty ) do
+        if entry[VT_UNIT_ID] == unitId then
+            return entry[VT_UNIT_NAME]
+        end
+    end
+    return nil
+end
+function grp:getMemberNameFromFrameName( frameName )
+    local playerId = nil
+
+    if frameName == "PlayerFrame" then
+        playerId = "player"
+    elseif frameName == "PartyMemberFrame1" then
+        playerId = "party1" 
+    elseif frameName == "PartyMemberFrame2" then
+        playerId = "party2"
+    elseif frameName == "PartyMemberFrame3" then
+        playerId = "party3"
+    elseif frameName == "PartyMemberFrame4" then
+        playerId = "party4"
+    else
+        E:where("frameName = "..frameName )
+        return nil
+    end
+    E:where( frameName .. ", "..UnitName( playerId ))
+    return UnitName( playerId )
+end
 ------------- DAMAGE METRICS ---------------------------
 function grp:setDamageTaken( memberName, damageTaken )
 
@@ -476,3 +506,5 @@ function grp:initAddonParty()
     end  
     return r
 end
+
+E:where("GroupServices.lua loaded")
