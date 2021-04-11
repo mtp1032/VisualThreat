@@ -4,7 +4,7 @@
 -- ORIGINAL DATE: 11 December, 2021
 local _, VisualThreat = ...
 VisualThreat.Metrics = {}
-mt = VisualThreat.Metrics
+metrics = VisualThreat.Metrics
 
 local L = VisualThreat.L
 local E = errors
@@ -13,23 +13,20 @@ local sprintf = _G.string.format
 local STATUS_SUCCESS 	= errors.STATUS_SUCCESS
 local STATUS_FAILURE 	= errors.STATUS_FAILURE
 
+------------ THE MEMBER RECORD INDICES ------------------
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
+local VT_UNIT_ID                 = grp.VT_UNIT_ID   
+local VT_PET_OWNER               = grp.VT_PET_OWNER 
+local VT_MOB_ID                  = grp.VT_MOB_ID                  
+local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
+local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
+local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 
+-------------- THREAT STATS RECORD INDICES ---------------
 local SUM_THREAT_VALUE      = grp.SUM_THREAT_VALUE
 local SUM_DAMAGE_TAKEN      = grp.SUM_DAMAGE_TAKEN
 local SUM_HEALS_RECEIVED    = grp.SUM_HEALS_RECEIVED
-local SUM_DAMAGE_DONE       = grp.SUM_DAMAGE_DONE
 
--- SORTING FUNCTIONS: All functions sort high to low
-local function sortByThreatValue(entry1, entry2)
-    return entry1[SUM_THREAT_VALUE] > entry2[SUM_THREAT_VALUE]
-end
-local function sortByDamageTaken(entry1, entry2)
-    return entry1[SUM_DAMAGE_TAKEN] > entry2[SUM_DAMAGE_TAKEN]
-end
-local function sortByHealsReceived(entry1, entry2)
-    return entry1[SUM_HEALS_RECD] > entry2[SUM_HEALS_RECD]
-end
 
 local MEMBER_NAME 			= 1
 local SUM_MEMBER_THREAT 	= 2
@@ -37,47 +34,89 @@ local RELATIVE_THREAT		= 3
 local SUM_DMG_TAKEN 		= 4
 local SUM_HEALS_RECD 		= 5
 
-local memberStats = {}
-
-local function initMemberStats()
-	local addonParty = grp:getAddonPartyTable()
+local function highToLow( entry1, entry2 )
+	return entry1[2] > entry2[2]
+end
+function metrics:getThreatStats()
+	local memberName = grp:getAddonPartyNames()
+	local numMembers = #memberName
 	
-	for _, entry in ipairs( addonParty ) do
-		local memberName = entry[VT_UNIT_NAME]
-		local relativeThreat = 0
-		local totalMemberThreat, totalGroupThreat = grp:getThreatStats( memberName )
-		if totalGroupThreat ~= 0 then 
-			relativeThreat = totalMemberThreat/totalGroupThreat
-			msg:postMsg( sprintf("\n  %s's Threat: %d, Total Threat: %d, Percent of Total: %0.2f%%\n", memberName, totalMemberThreat, totalGroupThreat, relativeThreat ))
+	local threat	= {}
+	local damage	= {}
+	local heals 	= {}
+
+	for i = 1, numMembers do
+		local entry = {}
+		local memberStats, groupStatsStats = grp:getThreatStats( memberName[i])
+        if memberStats > 0 then
+		    entry = {memberName[i], memberStats, groupStatsStats }
+		    table.insert( threat, entry )
+        end
+
+		local memberStats, groupStats	= grp:getHealingStats( memberName[i])
+        if memberStats > 0 then
+		    entry = {memberName[i], memberStats, groupStats }
+		    table.insert( heals, entry )
+        end
+
+		local memberStats, groupStats	= grp:getDamageTakenStats( memberName[i])
+        if memberStats > 0 then
+		    entry = {memberName[i], memberStats, groupStats }
+		    table.insert( damage, entry )
+        end
+	end
+	table.sort( threat, highToLow )
+	table.sort( damage, highToLow)
+	table.sort( heals, highToLow )
+
+	local threatStr = {}
+	for i = 1, numMembers do
+		for _, entry in ipairs( threat ) do
+            local s = nil
+            local percentTotal = 0.0
+            if entry[3] > 0 then
+                local percent = (entry[2]/entry[3]) * 100
+                s = sprintf("%s: %d threat generated (%0.1f%% of %d)\n", entry[1], entry[2], percent, entry[3] )
+            else
+                s = sprintf("%s: %d threat generated\n", entry[1], entry[2] )
+            end
+            local v = {entry[1], s }
+            table.insert( threatStr, v )
 		end
-
-		local sumDmgTaken, sumDmgDone = grp:getDamageStats( memberName )
-		local sumHealsRecd = grp:getHealingStats( memberName )
-
-		local entry = {memberName, totalMemberThreat, relativeThreat, sumDmgTaken, sumHealsRecd }
-		table.insert( memberStats, entry )
-	end
-end
-function mt:memberStats( memberName)
-	if #memberStats == 0 then
-		initMemberStats()
 	end
 
-	local s = nil
-	for _, entry in ipairs( memberStats ) do
-		if entry[MEMBER_NAME] == memberName then
-			s = sprintf("  %s's threat: %d, Percent of Total Threat: %0.2f%%, Damage Taken %d,  Healing Received %d\n", 
-								entry[MEMBER_NAME], 
-								entry[SUM_MEMBER_THREAT],
-								entry[RELATIVE_THREAT] * 100, 
-								entry[SUM_DMG_TAKEN], 
-								entry[SUM_HEALS_RECD] )
+	local healsStr = {}
+	for i = 1, numMembers do
+		for _, entry in ipairs( heals ) do
+            local percentTotal = 0.0
+            if entry[3] > 0 then
+                s = sprintf("%s: %d heals received (%0.1f%% of %d)\n", entry[1], entry[2], entry[2]/entry[3], entry[3] )
+            else
+                s = sprintf("%s: %d heals received.\n", entry[1], entry[2] )
+            end
+            local v = {entry[1], s }
+			table.insert( healsStr, v )
 		end
 	end
-	print( s )
-    return s
+
+	local dmgTakenStr = {}
+	for i = 1, numMembers do
+		for _, entry in ipairs( damage ) do
+            local s = nil
+            local percentTotal = 0.0
+            if entry[3] > 0 then
+                s = sprintf("%s: %d damage taken (%0.1f%% of %d)\n", entry[1], entry[2], entry[2]/entry[3], entry[3] )
+            else
+                s = sprintf("%s: %d damage taken.\n", entry[1], entry[2] )
+            end
+            local v = {entry[1], s }
+		    table.insert( dmgTakenStr, v)
+		end
+	end
+	return threatStr, healsStr, dmgTakenStr
 end
 
-SLASH_METRIC_TESTS1 = "/metrics"
-SlashCmdList["METRIC_TESTS"] = function( num )
+if E:isDebug() then
+    local fileName = "Metrics.lua"
+	DEFAULT_CHAT_FRAME:AddMessage( sprintf("%s loaded", fileName), 1.0, 1.0, 0.0 )
 end

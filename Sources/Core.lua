@@ -52,3 +52,5 @@ threatFramePositionSaved    = false
 
 damageFramePositionSaved    = false
 healsFramePositionSaved     = false
+
+core.ADDON_ENABLED          = true

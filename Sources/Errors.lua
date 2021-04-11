@@ -12,6 +12,22 @@ local L = VisualThreat.L
 local E = errors
 --                      Error messages associated with function parameters
 
+errors.DEBUG = true
+local DEBUG = errors.DEBUG
+
+function errors:isDebug()
+	return errors.DEBUG
+end
+function errors:isDebugEnabled()
+	return errors.DEBUG
+end
+function errors:enableDebug()
+	errors.DEBUG = true
+end
+function errors:disableDebug()
+	errors.DEBUG = false
+end
+
 --                      The Result Table
 local DISPLAY_TIME = 20
 
@@ -106,4 +122,9 @@ function errors:where( msg )
 	end
 	DEFAULT_CHAT_FRAME:AddMessage( str, 1.0, 1.0, 0.0 )
 end
+if E:isDebug() then
+    local fileName = "Errors.lua"
+	DEFAULT_CHAT_FRAME:AddMessage( sprintf("%s loaded", fileName), 1.0, 1.0, 0.0 )
+end
+
 

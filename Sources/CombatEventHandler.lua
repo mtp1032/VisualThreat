@@ -12,30 +12,34 @@ local E = errors
 local sprintf = _G.string.format
 
 -- CELU base parameters
-local TIMESTAMP			= 1		-- valid for all subEvents
-local SUBEVENT    		= 2		-- valid for all subEvents
-local HIDECASTER      	= 3		-- valid for all subEvents
-local SOURCEGUID      	= 4 	-- valid for all subEvents
-local SOURCENAME      	= 5 	-- valid for all subEvents
-local SOURCEFLAGS     	= 6 	-- valid for all subEvents
-local SOURCERAIDFLAGS 	= 7 	-- valid for all subEvents
-local TARGETGUID      	= 8 	-- valid for all subEvents
-local TARGETNAME      	= 9 	-- valid for all subEvents
-local TARGETFLAGS     	= 10 	-- valid for all subEvents
-local TARGETRAIDFLAGS 	= 11	-- valid for all subEvents
-local SPELL_NAME        = 13
+local TIMESTAMP			= combatStats.TIMESTAMP
+local SUBEVENT    		= combatStats.SUBEVENT
+local HIDECASTER      	= combatStats.HIDECASTER
+local SOURCEGUID      	= combatStats.SOURCEGUID
+local SOURCENAME      	= combatStats.SOURCENAME
+local SOURCEFLAGS     	= combatStats.SOURCEFLAGS
+local SOURCERAIDFLAGS 	= combatStats.SOURCERAIDFLAGS
+local TARGETGUID      	= combatStats.TARGETGUID
+local TARGETNAME      	= combatStats.TARGETNAME
+local TARGETFLAGS     	= combatStats.TARGETFLAGS
+local TARGETRAIDFLAGS 	= combatStats.TARGETRAIDFLAGS
+
+local SPELL_NAME            = combatStats.SPELL_NAME
+local SPELL_SCHOOL          = combatStats.SPELL_SCHOOL
+local AMOUNT_SWING_DAMAGED   = combatStats.AMOUNT_SWING_DAMAGED
+local AMOUNT_SPELL_DAMAGED   = combatStats.AMOUNT_SPELL_DAMAGED
+local AMOUNT_HEALED         = combatStats.AMOUNT_HEALED
+local IS_CRIT_HEAL          = combatStats.IS_CRIT_HEAL
+local IS_CRIT_RANGE         = combatStats.IS_CRIT_RANGE
+local IS_CRIT_DAMAGE        = combatStats.IS_CRIT_DAMAGE
 
 ceh.IN_COMBAT = true
 
-local THREAT_GENERATED    = btn.THREAT_GENERATED
-local HEALS_RECEIVED  = btn.HEALS_RECEIVED
-local DAMAGE_TAKEN    = btn.DAMAGE_TAKEN
+local THREAT_GENERATED      = btn.THREAT_GENERATED
+local HEALS_RECEIVED        = btn.HEALS_RECEIVED
+local DAMAGE_TAKEN          = btn.DAMAGE_TAKEN
 
 function ceh:handleEvent( stats )
-
-    if not ceh.IN_COMBAT then
-        return
-    end
     
     local targetName = stats[TARGETNAME]
     local sourceName = stats[SOURCENAME]
@@ -43,11 +47,17 @@ function ceh:handleEvent( stats )
     local r = {STATUS_SUCCESS, nil, nil }
 
     -- this filters out all combat events EXCEPT those
-    -- in which the target OR source is one of our members.
+    -- in which the target OR source is one of the party members.
+    -- if grp:inPlayersParty( sourceName ) ~= true and
+    --    grp:inPlayersParty( targetName ) ~= true then
+    --     return
+    -- end
+
     if grp:inPlayersParty( sourceName ) ~= true and
        grp:inPlayersParty( targetName ) ~= true then
         return
-    end
+       end
+
 
     if  subEvent ~= "SPELL_HEAL" and
         subEvent ~= "SPELL_PERIODIC_HEAL" and 
@@ -61,11 +71,10 @@ function ceh:handleEvent( stats )
         subEvent ~= "RANGE_DAMAGE" then
             return
     end
-
+    local spellName = stats[SPELL_NAME]
     if subEvent == "SPELL_CAST_START" then
         -- if the target is a group member, then s/he's been targeted
         -- by the caster.
-        -- E:where( sourceName.." casting "..tostring(stats[13]))
         -- if grp:inPlayersParty( targetName ) then
         --     local targetUnitId = grp:getUnitIdByName( targetName )
 
@@ -77,30 +86,58 @@ function ceh:handleEvent( stats )
         --     end
         -- end
     end
+    ------------- HEALING RECEIVED --------------------
+    if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
+
+        ------------- Healing Received ---------------
+        grp:setHealingReceived( targetName, stats[15] )
+        local healsString = nil
+        if stats[IS_CRIT_DAMAGE] then
+            healsString = sprintf("%s's %s CRITICALLY healed %s for %d.", sourceName, spellName, targetName, stats[15] )
+        else
+            healsString = sprintf("%s's %s healed %s for %d.", sourceName, spellName, targetName, stats[15] )
+        end
+
+        ------------- Healing Done ----------------
+        if stats[AMOUNT_HEALED] == nil then
+            stats[AMOUNT_HEALED] = 0
+        end
+        local spellSchool = stats[SPELL_SCHOOL]
+        combatStats:insertHealingRecord( sourceName, stats[SPELL_NAME], stats[AMOUNT_SPELL_DAMAGED], stats[IS_CRIT_DAMAGE], spellSchool )
+        return
+    end
 
     -------------- DAMAGE TAKEN AND DAMAGE DONE ---------------
-    if  subEvent == "SWING_DAMAGE" or
-        subEvent == "SPELL_DAMAGE" or
-        subEvent == "SPELL_PERIODIC_DAMAGE" or
-        subEvent == "RANGE_DAMAGE" then
+    if  subEvent ~= "SWING_DAMAGE" and
+        subEvent ~= "SPELL_DAMAGE" and
+        subEvent ~= "SPELL_PERIODIC_DAMAGE" and
+        subEvent ~= "RANGE_DAMAGE" then
+            return
+    end
         
-        local damage = 0
-        if subEvent == "SWING_DAMAGE" then
-            damage = stats[12]
-        else
-            damage = stats[15]
-        end
+    local spellName     = stats[SPELL_NAME]
+    local spellSchool   = stats[SPELL_SCHOOL]
+        
+    if subEvent == "SWING_DAMAGE" then
+        damage      = stats[AMOUNT_SWING_DAMAGED]
+        spellName   = "melee attack"
+    end
+    if damage == nil then damage = 0 end
+    ---------- Damage Taken ----------------
+    if damage > 0 then
         if grp:inPlayersParty( targetName ) then
             grp:setDamageTaken( targetName, damage )
         end
-        if grp:inPlayersParty( sourceName ) then
-            grp:setDamageDone( sourceName, damage )
+        ----------- Damage Done -----------------
+            
+        local dmgStr = nil
+        if stats[IS_CRIT_DAMAGE] then
+            dmgString = sprintf("%s's %s(%s) CRITICALLY hit %s for %d damage.", sourceName, spellName, spellSchool,targetName, damage )
+        else
+            dmgString = sprintf("%s's %s(%s) hit %s for %d damage.", sourceName, spellName, spellSchool,targetName, damage )
         end
-    end
-    ------------- HEALING RECEIVED --------------------
-    if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
-        -- msg:postMsg( sprintf("%s: %s (%s) healed %s for %d.\n", subEvent, stats[SPELL_NAME], stats[SOURCENAME], stats[TARGETNAME], stats[HEALS_RECEIVED]))
-        grp:setHealingReceived( targetName, stats[15] )
+        combatStats:insertDamageRecord( sourceName, spellName, spellSchool, targetName, damage )
+        return
     end
     ------------- PETS SUMMONED AND DISMISSED --------------------
     local spell = string.upper( stats[SPELL_NAME] )
@@ -140,7 +177,7 @@ function ceh:handleEvent( stats )
         end
     end
 
-    if btn.threatIconStack then
+    if btn.threatIconStack then 
         btn.threatIconStack:Hide()
     end
     btn.threatIconStack = btn:createIconStack(THREAT_GENERATED)
@@ -149,8 +186,6 @@ function ceh:handleEvent( stats )
     if btn.healsIconStack then
         btn.healsIconStack:Hide()
     end
-    -- btn.healsIconStack = btn:createIconStack(HEALS_RECEIVED)
-    -- btn.healsIconStack:Show()
     
     if btn.damageIconStack then
         btn.damageIconStack:Hide()

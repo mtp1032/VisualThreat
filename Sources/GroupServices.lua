@@ -23,23 +23,19 @@ grp.VT_UNIT_ID                  = 2
 grp.VT_PET_OWNER                = 3
 grp.VT_MOB_ID                   = 4  
 grp.VT_ACCUM_THREAT_VALUE       = 5
-grp.VT_THREAT_VALUE_RATIO       = 6
 
-grp.VT_ACCUM_DAMAGE_TAKEN       = 7
-grp.VT_ACCUM_DAMAGE_DONE        = 8
-grp.VT_ACCUM_HEALING_RECEIVED   = 9
-grp.VT_UNIT_FRAME               = 10
+grp.VT_ACCUM_DAMAGE_TAKEN       = 6
+grp.VT_ACCUM_HEALING_RECEIVED   = 7
+grp.VT_UNIT_FRAME               = 8
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
 local VT_PET_OWNER               = grp.VT_PET_OWNER 
 local VT_MOB_ID                  = grp.VT_MOB_ID                  
-local VT_THREAT_VALUE_RATIO      = grp.VT_THREAT_VALUE_RATIO
 
 -- Accumulators
 local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
-local VT_ACCUM_DAMAGE_DONE       = grp.VT_ACCUM_DAMAGE_DONE
 local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 local VT_UNIT_FRAME              = grp.VT_UNIT_FRAME
 
@@ -47,22 +43,17 @@ local VT_UNIT_FRAME              = grp.VT_UNIT_FRAME
 grp.SUM_THREAT_VALUE    = 1
 grp.SUM_DAMAGE_TAKEN    = 2
 grp.SUM_HEALS_RECEIVED  = 3
-grp.SUM_DAMAGE_DONE     = 4
 
 local SUM_THREAT_VALUE      = grp.SUM_THREAT_VALUE
 local SUM_DAMAGE_TAKEN      = grp.SUM_DAMAGE_TAKEN
 local SUM_HEALS_RECEIVED    = grp.SUM_HEALS_RECEIVED
-local SUM_DAMAGE_DONE       = grp.SUM_DAMAGE_DONE
 
-local statsTable = { 0,    -- SUM_THREAT_VALUE
-                     0,    -- SUM_DAMAGE_TAKEN
-                     0,    -- SUM_HEALS_RECEIVED
-                     0}    -- SUM_DAMAGE_DONE
+local threatStats = { 0,   -- SUM_THREAT_VALUE
+                      0,    -- SUM_DAMAGE_TAKEN
+                      0}    -- SUM_HEALS_RECEIVED
 
 grp._EMPTY = ""
 local _EMPTY = grp._EMPTY
-
-local _defaultEntry = { _EMPTY, _EMPTY, nil, nil, 0, 0, 0, 0, 0, _EMPTY }
 
 local partypet  = {"partypet1", "partypet2", "partypet3", "partypet4"}
 local party     = {"party1",    "party2",    "party3",    "party4" }
@@ -72,16 +63,9 @@ local party     = {"party1",    "party2",    "party3",    "party4" }
 -- is "player"; (2) the addonParty contains an entry for each pet. The
 -- blizzard party contains no entry for the pet. Thus, the addonParty can
 -- contain up to 10 members if each of the [maximum of] 5 members has a pet.
+local _defaultEntry = { _EMPTY, _EMPTY, nil, nil, 0, 0, 0, _EMPTY }
 local addonParty = {}
 
----------------------------------------------+
-local function copyAddonTable()
-    local tableCopy = {}
-    for i, entry in ipairs( addonParty ) do
-        tableCopy[i] = entry
-    end
-    return tableCopy
-end
 local function sortByThreatValue( entry1, entry2 )
     return entry1[VT_ACCUM_THREAT_VALUE] > entry2[VT_ACCUM_THREAT_VALUE]
 end
@@ -91,23 +75,15 @@ end
 local function sortByHealsReceived(entry1, entry2)
     return entry1[VT_ACCUM_HEALING_RECEIVED ] > entry2[VT_ACCUM_HEALING_RECEIVED]
 end
-function grp:sortAddonTable( index )
-
-    local sortedTable = copyAddonTable()
-
-    if index == nil then
+local function copyTable( t )
+    local copy = {}
+    for _, entry in ipairs(t) do
+        table.insert( copy, entry )
     end
-    if index == VT_ACCUM_THREAT_VALUE then
-        table.sort( sortedTable, sortByThreatValue )
-    elseif index == VT_ACCUM_DAMAGE_TAKEN then
-        table.sort( sortedTable, sortByDamageTaken )
-    elseif index == VT_ACCUM_HEALING_RECEIVED then
-        table.sort( sortedTable, sortByHealsReceived )
-    end
-    return sortedTable
-end     
-function grp:getAddonPartyTable()
-    return addonParty
+    return copy
+end
+local function copyAddonPartyTable()
+    return copyTable( addonParty )
 end
 local function initializePartyEntry( unitName, unitId, petOwner, mobId )
     local r = {STATUS_SUCCESS, nil, nil}
@@ -118,6 +94,41 @@ local function initializePartyEntry( unitName, unitId, petOwner, mobId )
 
     local newEntry = { unitName, unitId, petOwner, mobId, 0, 0, 0, 0, 0, _EMPTY }
     return newEntry, r
+end
+--------------------- PUBLIC FUNCTIONS -----------------------------
+function grp:sortAddonPartyTable( index )
+
+    if index == nil then
+        return nil
+    end
+
+    local addonPartyCopy = copyTable( addonParty )
+
+    if index == VT_ACCUM_THREAT_VALUE then
+        table.sort( addonPartyCopy, sortByThreatValue )
+    elseif index == VT_ACCUM_DAMAGE_TAKEN then
+        table.sort( addonPartyCopy, sortByDamageTaken )
+    elseif index == VT_ACCUM_HEALING_RECEIVED then
+        table.sort( addonPartyCopy, sortByHealsReceived )
+    else
+        return nil
+    end
+
+    return addonPartyCopy
+end     
+function grp:getAddonPartyTable()
+    return addonParty
+end
+function grp:inPlayersParty( memberName )
+    local isMember = false
+    if #addonParty == 0 then return isMember end
+
+    for _, v in ipairs( addonParty ) do
+        if v[VT_UNIT_NAME] == memberName then
+            isMember = true
+        end
+    end
+    return isMember
 end
 function grp:insertPartyEntry( unitName, unitId, OwnerName, mobId )    
     local r = {STATUS_SUCCESS, nil, nil }
@@ -146,8 +157,6 @@ function grp:printPartyEntry( entry )
                                         entry[VT_UNIT_ID] ))
     end
 end
--- returns a table identical to that of the blizz party, i.e.,
--- NO PET nor the "player"
 function grp:getAddonPartyNames()
     if #addonParty == 0 then return nil end
 
@@ -164,21 +173,9 @@ function grp:getPartyEntries()
     end
     return nameTable
 end
-function grp:inPlayersParty( memberName )
-    local isMember = false
-    if #addonParty == 0 then
-        return isMember
-    end
-    for _, v in ipairs( addonParty ) do
-        if v[VT_UNIT_NAME] == memberName then
-            isMember = true
-        end
-    end
-    return isMember
+function grp:getPartyNames()
+     return GetHomePartyInfo()
 end
--- function GetHomePartyInfo()
---     return GetHomePartyInfo()
--- end
 function grp:inBlizzParty( memberName )
     local isBlizzMember = false
     
@@ -294,7 +291,7 @@ function grp:getUnitIdByName( memberName )
     end
     return nil
 end
-function grp:getEntryByName( memberName )
+local function getEntryByName( memberName )
     if #addonParty == 0 then return nil end
 
     for _, entry in ipairs( addonParty ) do
@@ -316,10 +313,21 @@ function grp:getPetByOwnerName( memberName )
     local petName = nil
     for _, v in ipairs( addonParty ) do
         if v[VT_PET_OWNER] == memberName then
-            return v[VT_UNIT_NAME]
+            petName = v[VT_UNIT_NAME]
         end
     end
     return petName
+end
+function grp:memberIsPet( memberName )
+    local isPet = false
+    for _, v in ipairs( addonParty ) do
+        if v[VT_UNIT_NAME] == memberName then
+            if v[VT_PET_OWNER] ~= _EMPTY then
+                isPet = true
+            end
+        end
+    end
+    return isPet
 end
 function grp:getMemberNameById( unitId )
     if #addonParty == 0 then return nil end
@@ -345,20 +353,20 @@ function grp:getMemberNameFromFrameName( frameName )
     elseif frameName == "PartyMemberFrame4" then
         playerId = "party4"
     else
-        E:where("frameName = "..frameName )
         return nil
     end
-    E:where( frameName .. ", "..UnitName( playerId ))
     return UnitName( playerId )
 end
 ------------- DAMAGE METRICS ---------------------------
 function grp:setDamageTaken( memberName, damageTaken )
+    E:where( memberName .. ", " .. tostring(damageTaken) )
 
-    statsTable[SUM_DAMAGE_TAKEN] = statsTable[SUM_DAMAGE_TAKEN] + damageTaken
+    threatStats[SUM_DAMAGE_TAKEN] = threatStats[SUM_DAMAGE_TAKEN] + damageTaken
 
     for _, v in ipairs( addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
             v[VT_ACCUM_DAMAGE_TAKEN] = v[VT_ACCUM_DAMAGE_TAKEN] + damageTaken
+            E:where( memberName .. ", " .. tostring(damageTaken) )
         end
     end
 end
@@ -370,39 +378,21 @@ function grp:getDamageTakenStats( memberName )
             accumMemberDmgTaken = v[VT_ACCUM_DAMAGE_TAKEN]
         end
     end
-    return accumMemberDmgTaken, statsTable[SUM_DAMAGE_TAKEN]
-end
-function grp:setDamageDone( memberName, damageDone )
-
-    statsTable[SUM_DAMAGE_DONE] = statsTable[SUM_DAMAGE_DONE] + damageDone
-
-    for _, v in ipairs( addonParty ) do
-
-        if v[VT_UNIT_NAME] == memberName then
-            v[VT_ACCUM_DAMAGE_DONE] = v[VT_ACCUM_DAMAGE_DONE] + damageDone
-        end
-    end
-end
-function grp:getDamageDoneStats( memberName )
-    local accumMemberDmgDone = 0
-    for _, v in ipairs( addonParty ) do
-        if v[VT_UNIT_NAME] == memberName then
-            accumMemberDmgDone = v[VT_ACCUM_DAMAGE_DONE]
-        end
-    end
-    return accumMemberDmgDone, statsTable[SUM_DAMAGE_DONE]
+    return accumMemberDmgTaken, threatStats[SUM_DAMAGE_TAKEN]
 end
 ------------- HEALING RECEIVED METRICS ---------------------
 function grp:setHealingReceived( memberName, healingReceived )
     local accumHealing = 0
     
-    statsTable[SUM_HEALS_RECEIVED] = statsTable[SUM_HEALS_RECEIVED] + healingReceived
+    threatStats[SUM_HEALS_RECEIVED] = threatStats[SUM_HEALS_RECEIVED] + healingReceived
 
     for _, v in ipairs( addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
             v[VT_ACCUM_HEALING_RECEIVED] = v[VT_ACCUM_HEALING_RECEIVED] + healingReceived
         end
     end
+end
+function grp:setHealingDone( memberName, healing, isCritical )
 end
 function grp:getHealingStats( memberName )
     local membersHealingReceived = 0
@@ -413,12 +403,12 @@ function grp:getHealingStats( memberName )
             break
         end
     end
-    return membersHealingReceived, statsTable[SUM_HEALS_RECEIVED]
+    return membersHealingReceived, threatStats[SUM_HEALS_RECEIVED]
 end
 ---------------- THREAT METRICS -----------------------------
 function grp:setThreatValues( memberName, threatValue)
 
-    statsTable[SUM_THREAT_VALUE] = statsTable[SUM_THREAT_VALUE] + threatValue
+    threatStats[SUM_THREAT_VALUE] = threatStats[SUM_THREAT_VALUE] + threatValue
 
     for _, v in ipairs( addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
@@ -435,21 +425,18 @@ function grp:getThreatStats( memberName )
         end
     end
 
-    return membersThreatValue, statsTable[SUM_THREAT_VALUE]
+    return membersThreatValue, threatStats[SUM_THREAT_VALUE]
 end
 function grp:getStatsTable()
-    return statsTable[SUM_THREAT_VALUE], statsTable[SUM_DAMAGE_TAKEN], statsTable[SUM_HEALS_RECEIVED], statsTable[SUM_DAMAGE_DONE]
+    return threatStats[SUM_THREAT_VALUE], threatStats[SUM_DAMAGE_TAKEN], threatStats[SUM_HEALS_RECEIVED] 
 end
-function grp:resetCombatStats()
-    statsTable = {0,0,0,0}
-    for _, v in ipairs( addonParty ) do
-        v[VT_THREAT_VALUE_RATIO]      = 0
-        
+function grp:resetStats()
+    threatStats = {0,0,0}
+    for _, v in ipairs( addonParty ) do        
         -- Accumulators
         v[VT_ACCUM_THREAT_VALUE]      = 0
         v[VT_ACCUM_DAMAGE_TAKEN]      = 0
-        v[VT_ACCUM_DAMAGE_DONE]       = 0
-        v[VT_ACCUM_HEALING_RECEIVED]  = 0
+        v[VT_ACCUM_HEALING_RECEIVED]  = 0 
     end
 end
 
@@ -507,4 +494,8 @@ function grp:initAddonParty()
     return r
 end
 
-E:where("GroupServices.lua loaded")
+if E:isDebug() then
+    local fileName = "GroupServices.lua"
+	DEFAULT_CHAT_FRAME:AddMessage( sprintf("%s loaded", fileName), 1.0, 1.0, 0.0 )
+end
+

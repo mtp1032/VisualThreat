@@ -320,3 +320,7 @@ function msg:postResult( result )
     errorFrame:Show()
     errorFrame.Text:Insert( result[2] )
 end
+if E:isDebug() then
+    local fileName = "MessageFrames.lua"
+	DEFAULT_CHAT_FRAME:AddMessage( sprintf("%s loaded", fileName), 1.0, 1.0, 0.0 )
+end

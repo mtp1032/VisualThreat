@@ -29,7 +29,6 @@ local VT_UNIT_ID                 = grp.VT_UNIT_ID
 local VT_UNIT_FRAME           = grp.VT_UNIT_FRAME
 local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
-local VT_ACCUM_DAMAGE_DONE       = grp.VT_ACCUM_DAMAGE_DONE
 local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
 
 local _EMPTY                     = grp._EMPTY
@@ -46,9 +45,57 @@ btn.THREAT_GENERATED  = 1
 btn.HEALS_RECEIVED    = 2
 btn.DAMAGE_TAKEN      = 3
 
-local THREAT_GENERATED    = btn.THREAT_GENERATED
-local HEALS_RECEIVED      = btn.HEALS_RECEIVED
-local DAMAGE_TAKEN        = btn.DAMAGE_TAKEN
+local THREAT_GENERATED  = btn.THREAT_GENERATED
+local HEALS_RECEIVED    = btn.HEALS_RECEIVED
+local DAMAGE_TAKEN      = btn.DAMAGE_TAKEN
+
+
+
+btn.THREAT_TRACKING_ENABLED       = true
+btn.HEALS_RECD_TRACKING_ENABLED   = true
+btn.DAMAGE_TAKEN_TRACKING_ENABLED = true
+btn.DAMAGE_DONE_TRACKING_ENABLED  = true
+
+local THREAT_TRACKING_ENABLED       = btn.THREAT_TRACKING_ENABLED
+local HEALS_RECD_TRACKING_ENABLED   = btn.HEALS_RECD_TRACKING_ENABLED
+local DAMAGE_TAKEN_TRACKING_ENABLED = btn.DAMAGE_TAKEN_TRACKING_ENABLED
+local DAMAGE_DONE_TRACKING_ENABLED  = btn.DAMAGE_DONE_TRACKING_ENABLED
+
+function btn:enableThreatTracking()
+    THREAT_TRACKING_ENABLED = true
+    E:where( "Threat Tracking is enabled.")
+end
+function btn:disableThreatTracking()
+  THREAT_TRACKING_ENABLED = false
+  E:where( "Threat Tracking is disabled.")
+end
+
+function btn:enableHealsRecdTracking()
+  HEALS_RECD_TRACKING_ENABLED = true
+    E:where( "Tracking Heals received is enabled.")
+end
+function btn:disableHealsRecdTracking()
+  HEALS_RECD_TRACKING_ENABLED = false
+  E:where( "Tracking Heals received is disabled.")
+end
+
+function btn:enableTrackDamageDone()
+  DAMAGE_DONE_TRACKING_ENABLED = true
+  E:where( "Tracking Damage Done is enabled.")
+end
+function btn:disableTrackDamageDone()
+  DAMAGE_DONE_TRACKING_ENABLED = false
+  E:where( "Tracking Damage Done is disabled.")
+end
+
+function btn:enableDmgTakenTracking()
+  DAMAGE_TAKEN_TRACKING_ENABLED = true
+  E:where( "Tracking Damage Taken is enabled.")
+end
+function btn:disableDmgTakenTracking()
+  DAMAGE_TAKEN_TRACKING_ENABLED = false
+  E:where( "Tracking Damage Taken is disabled.")
+end
 
 -- frameName = GetMouseFocus():GetName())
 
@@ -84,7 +131,8 @@ Steps:
 	lineFrame:Show() 
  end
 
-local function popUpStats( unitName )
+----------------------- POPUP COMBAT STATS ---------------------
+local function popUpStats( unitName ) 
 
   local f = CreateFrame("Button", "Current Stats", nil, "TooltipBackdropTemplate" )
   f:SetBackdropBorderColor(0.5,0.5,0.5)
@@ -115,41 +163,59 @@ local function popUpStats( unitName )
   drawLine( -80, f )
   
   local str = nil
-  local taken, total = grp:getThreatStats(unitName)
-  if total > 0 then
-    local relative= (taken/total)*100
-    str = sprintf("Threat Generated: %d (%1.f%%)", taken, relative )
-    f.Threat = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-    f.Threat:SetPoint("TOPLEFT", 10 ,-40 )
-    f.Threat:SetJustifyH("LEFT")
-    f.Threat:SetText(str)
+
+  ------------ THREAT STATS --------------------
+  local membersThreat, totalThreat = grp:getThreatStats(unitName)
+  if totalThreat > 0 then
+    local relative= (membersThreat/totalThreat)*100
+    str = sprintf("Threat Generated: %d (%1.f%%)", membersThreat, relative )
+  else
+    str = sprintf("Threat Generated: %d (%1.f%%)", 0, 0 )
   end
+  f.Threat = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+  f.Threat:SetPoint("TOPLEFT", 10 ,-40 )
+  f.Threat:SetJustifyH("LEFT")
+  f.Threat:SetText(str)
+
+  ---------------- DAMAGE TAKEN -----------------------
   local taken, total = grp:getDamageTakenStats(unitName)
   if total > 0 then
     local relative= (taken/total)*100
     str = sprintf("Damage Taken: %d (%1.f%%)", taken, relative )
-    f.Damage = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-    f.Damage:SetPoint("TOPLEFT", 10, -60)
-    f.Damage:SetJustifyH("LEFT")
-    f.Damage:SetText( str )
+  else
+    str = sprintf("Damage Taken: %d (%1.f%%)", 0,0)
   end
-  local taken, total = grp:getHealingStats(unitName)
-  if total > 0 then
-    local relative= (taken/total)*100
-    str = sprintf("Healing Received: %d (%1.f%%)", taken, relative )
-    f.Heals = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
-    f.Heals:SetPoint("TOPLEFT", 10, -80)
-    f.Heals:SetJustifyH("LEFT")
-    f.Heals:SetText(str)
+  f.Damage = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+  f.Damage:SetPoint("TOPLEFT", 10, -60)
+  f.Damage:SetJustifyH("LEFT")
+  f.Damage:SetText( str )
+  
+  -------------- HEALING RECEIVED ----------------------
+  local byMember, inTotal = grp:getHealingStats(unitName)
+  if inTotal > 0 then
+    local relative= (byMember/inTotal)*100
+    str = sprintf("Healing Received: %d (%1.f%%)", byMember, relative )
+  else
+    str = sprintf("Healing Received: %d (%1.f%%)", 0, 0 )
   end
-  local taken, total = grp:getDamageDoneStats(unitName)
-  if total > 0 then
-    local relative= (taken/total)*100
-    str = sprintf("DamageDone: %d (%1.f%%", taken, relative )
+  f.Heals = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
+  f.Heals:SetPoint("TOPLEFT", 10, -80)
+  f.Heals:SetJustifyH("LEFT")
+  f.Heals:SetText(str)
+  ---------------- DAMAGE DONE ----------------------
+  if DAMAGE_DONE_TRACKING_ENABLED then
+    local memberDmg, memberCrit, memberCasts = combatStats:getDamageStats(unitName)
+    if memberDmg > 0 then
+      local spellPower = memberDmg/memberCasts
+      local critPercent = (memberCrit/memberDmg) * 100
+      str = sprintf("Damage: %d, Spell Power: %1.f, Crit %1.f%%", memberDmg, spellPower, critPercent )
+    else
+      str = sprintf("Damage: %d, Spell Power: %1.f, Crit %1.f%%", 0, 0, 0 )
+    end
     f.DamageDone = f:CreateFontString(nil,"ARTWORK","GameFontNormalSmall")
     f.DamageDone:SetPoint("TOPLEFT", 10, -100)
     f.DamageDone:SetJustifyH("LEFT")
-    f.DamageDone:SetText(str )
+    f.DamageDone:SetText(str)
   end
   return f
 end
@@ -178,10 +244,20 @@ local function createStatusBar( parent )
   return f.statusBar
 end
 -- ******************* UNIT TESTING ******************************
--- C_Timer.NewTicker(0.5, function()
---     local val = random(100)/100
---     f.statusBar:SetSmoothedValue( val ) 
--- end)
+local function updateCombatStats()
+  C_Timer.NewTicker(0.5, function()
+      local memberDmg = 0
+      local memberCritDmg = 0
+      local memberDmgCasts = 0
+      
+      local groupDmg, groupCritDmg, groupDmgCasts = combatStats:getGroupDamageStats()
+      local partyMembers = GetHomePartyInfo()
+      for i = 1, #partyMembers do
+        memberDmg, memberCritDmg, memberDmgCasts = combatStats:getDamageStats( partyMembers[i])
+      end
+      f.statusBar:SetSmoothedValue( val ) 
+end)
+end
 
 local function createEmptyButton(parent, frameName )
 
@@ -209,15 +285,10 @@ local function createEmptyButton(parent, frameName )
 
   return buttonFrame 
 end
-    ------- CREATES THE FRAME FOR THE PORTRAIT ICONS ---------------
+    ------- CREATES THE FRAMES FOR THE PORTRAIT ICONS ---------------
 function btn:createIconStack( stackType )
 
-  --------- DEBUG -------
-  if stackType == HEALS_RECEIVED then return end
-  ------- END DEBUG -----
-
   local groupCount = grp:getTotalMemberCount()
-
   local f = CreateFrame("Frame", "IconStack", UIParent, "BasicFrameTemplate")
    
     f:SetSize( BUTTON_WIDTH+10, BUTTON_HEIGHT*groupCount+28)
@@ -227,7 +298,7 @@ function btn:createIconStack( stackType )
     ------------ SET, SAVE, and GET FRAME POSITION ---------------------
   local sortedTable = {}
   if stackType == THREAT_GENERATED then
-    sortedTable = grp:sortAddonTable( VT_ACCUM_THREAT_VALUE )
+    sortedTable = grp:sortAddonPartyTable( VT_ACCUM_THREAT_VALUE )
 
     f:SetPoint( framePosition[1], 
                 framePosition[2], 
@@ -241,7 +312,8 @@ function btn:createIconStack( stackType )
     end)
   end
   if stackType == HEALS_RECEIVED then
-    sortedTable = grp:sortAddonTable( VT_ACCUM_HEALING_RECEIVED )
+
+    sortedTable = grp:sortAddonPartyTable( VT_ACCUM_HEALING_RECEIVED )
     f:SetPoint( healsFramePosition[1], 
                 healsFramePosition[2], 
                 healsFramePosition[3], 
@@ -254,7 +326,8 @@ function btn:createIconStack( stackType )
     end)
   end
   if stackType == DAMAGE_TAKEN then
-    sortedTable = grp:sortAddonTable( VT_ACCUM_DAMAGE_TAKEN )
+
+    sortedTable = grp:sortAddonPartyTable( VT_ACCUM_DAMAGE_TAKEN )
 
     f:SetPoint( damageFramePosition[1], 
                 damageFramePosition[2], 
@@ -275,21 +348,19 @@ function btn:createIconStack( stackType )
     local popUpFrame = {}
     
     if stackType == DAMAGE_TAKEN then
-      frameName = "DAMAGE TAKEN"
+      frameName = "Damage Taken"
     end
     if stackType == HEALS_RECEIVED then
-      frameName = "HEALS RECEIVED"
+      frameName = "Healing Received"
     end
     if stackType == THREAT_GENERATED then
-      frameName = "THREAT GENERATED"
+      frameName = "Threat Generated"
     end
 
     entry[VT_UNIT_FRAME] = createEmptyButton(f, frameName )
     entry[VT_UNIT_FRAME]:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
     entry[VT_UNIT_FRAME]:SetPoint("TOPLEFT",5,-((i-1)*BUTTON_HEIGHT)-24)
-    -- if i > 1 then
-    --   entry[VT_UNIT_FRAME]:SetAlpha( 0.2)
-    -- end
+    entry[VT_UNIT_FRAME]:SetAlpha( 1.0 )
     entry[VT_UNIT_FRAME]:SetScript("OnEnter", function( self, ... )
         local frame = GetMouseFocus()
         local frameName = frame:GetName()
@@ -306,7 +377,7 @@ function btn:createIconStack( stackType )
     local r, g, b = getClassColor( unitId )
     entry[VT_UNIT_FRAME].StatusBar:SetStatusBarColor(r, g, b )
         
-        ---------------------- THREAT GENERATE ----------------------------
+        ---------------------- THREAT GENERATED ----------------------------
     if stackType == THREAT_GENERATED then
       local relativeThreat = 0
       local memberTotalThreat, groupTotalThreat  = grp:getThreatStats( unitName )
@@ -326,6 +397,7 @@ function btn:createIconStack( stackType )
     if stackType == HEALS_RECEIVED then
       local relativeHealing = 0
       local memberTotalHealing, groupTotalHealing  = grp:getHealingStats( unitName )
+      -- msg:postMsg( sprintf("%s received %d healing of %d total healing.\n", unitName, memberTotalHealing, groupTotalHealing ))
       if groupTotalHealing ~= 0 then
         relativeHealing = memberTotalHealing/groupTotalHealing 
       end
@@ -335,13 +407,14 @@ function btn:createIconStack( stackType )
       else
         entry[VT_UNIT_FRAME].Name:SetFormattedText( "%s: %0.1f%%", unitName, relativeHealing * 100 )
       end
-
       entry[VT_UNIT_FRAME].StatusBar:SetSmoothedValue( relativeHealing )
     end
     ---------------------- DAMAGE TAKEN ----------------------------
     if stackType == DAMAGE_TAKEN then
       local relativeDamage = 0
       local memberTotalDamage, groupTotalDamage  = grp:getDamageTakenStats( unitName )
+      -- msg:postMsg( sprintf("%s received %d damage of %d total party damage.\n", unitName, memberTotalDamage, groupTotalDamage ))
+
       if groupTotalDamage ~= 0 then
         relativeDamage = memberTotalDamage/groupTotalDamage  
       end
@@ -356,4 +429,10 @@ function btn:createIconStack( stackType )
     end  
   end
   return f
+
 end  
+
+if E:isDebug() then
+  local fileName = "Buttons.lua"
+DEFAULT_CHAT_FRAME:AddMessage( sprintf("%s loaded", fileName), 1.0, 1.0, 0.0 )
+end
