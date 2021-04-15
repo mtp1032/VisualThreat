@@ -4,7 +4,7 @@
 -- ORIGINAL DATE: 11 December, 2021
 local _, VisualThreat = ...
 VisualThreat.FloatingText = {}
-ft = VisualThreat.FloatingText
+ftext = VisualThreat.FloatingText
 
 local L = VisualThreat.L
 local E = errors
@@ -14,13 +14,13 @@ local STATUS_SUCCESS 	= errors.STATUS_SUCCESS
 local STATUS_FAILURE 	= errors.STATUS_FAILURE
 ------------- FLOATING TEXT METHODS ----------------------
 
-ft.DEFAULT_STARTING_REGION  = "CENTER"
-ft.DEFAULT_STARTING_XPOS    = 250
-ft.DEFAULT_STARTING_YPOS    = -100
+ftext.DEFAULT_STARTING_REGION  = "CENTER"
+ftext.DEFAULT_STARTING_XPOS    = 250
+ftext.DEFAULT_STARTING_YPOS    = -100
 
-local DEFAULT_STARTING_REGION   = ft.DEFAULT_STARTING_REGION
-local DEFAULT_STARTING_XPOS     = ft.DEFAULT_STARTING_XPOS
-local DEFAULT_STARTING_YPOS     = ft.DEFAULT_STARTING_YPOS
+local DEFAULT_STARTING_REGION   = ftext.DEFAULT_STARTING_REGION
+local DEFAULT_STARTING_XPOS     = ftext.DEFAULT_STARTING_XPOS
+local DEFAULT_STARTING_YPOS     = ftext.DEFAULT_STARTING_YPOS
 local READY = true
 
 local function delay( seconds )
@@ -30,6 +30,8 @@ local function delay( seconds )
 end
 
 local framePool = CreateFramePool("frame", UIParent, "BackdropTemplate")
+
+-- called by/in ftext:getFrame()
 local function configAnimation(f)
 
     f.animGroup = f:CreateAnimationGroup()
@@ -68,6 +70,8 @@ local function configAnimation(f)
         framePool:Release(f)
     end)
 end
+
+-- called by/in ftext:displayString() and ftext:displayStrings()
 local function updateAnimation(f, duration, Xdistance, Ydistance )
     -- These are order 1 animations
     local fadeDuration = duration/4         -- fadeDuration = 3
@@ -90,10 +94,11 @@ local function updateAnimation(f, duration, Xdistance, Ydistance )
     f.animGroup.moveout:SetOffset( Xdistance/4, Ydistance/4 )   -- Ydistance/4 = 96
     f.animGroup.moveout:SetDuration( fadeDuration )
 end
-function ft:getFrame( region, startingXpos, startingYpos)
+-- called by/in ftext:displayString() and ftext:displayStrings()
+local function getFrame( region, startingXpos, startingYpos)
     f = framePool:Acquire()
     f.Text = f:CreateFontString(nil,"ARTWORK","GameFontNormalLarge")
-    f.Text:SetPoint("LEFT", 0, 0 )      -- text will be justified left.
+    f.Text:SetPoint("LEFT", 0, 0 )      -- text will be justified leftext.
     f:SetSize(400,20)
 
     -- When the frame is created f.SetPoint() is the starting position
@@ -110,9 +115,10 @@ function ft:getFrame( region, startingXpos, startingYpos)
     return f
 end
 
-function ft:displayString( threatStr )
+-- PUBLIC/EXPORTED FUNCTION
+function ftext:displayString( threatStr )
 
-    local f = ft:getFrame("CENTER", 350, -100 )
+    local f = getFrame("CENTER", 350, -100 )
     f.Text:SetText("")
     f.Text:SetText( threatStr )
 
@@ -123,14 +129,16 @@ function ft:displayString( threatStr )
     E:where( f.Text:GetText() )
     f.animGroup:Play()
 end
-function ft:displayStrings( threatStrings )
+
+-- PUBLIC/EXPORTED function
+function ftext:displayStrings( threatStrings )
     if not READY then
         return
     end
     READY = false
     local str = {}
 	for i, entry in ipairs( threatStrings ) do
-        local f = ft:getFrame("CENTER", 0, DEFAULT_STARTING_YPOS )
+        local f = getFrame("CENTER", 0, DEFAULT_STARTING_YPOS )
 		f.Text:SetText( entry[2] )
         -- msg:postMsg( sprintf("%s\n", entry[2]))
 
@@ -151,6 +159,24 @@ function ft:displayStrings( threatStrings )
 	end
     READY = true
 end
+
+local function writeStr()
+    local threatString = nil
+
+    while threatString == nil do
+        threatString = getThreatString( threadStrTable )
+        if threatString ~= nil then
+            ftext:displayString( threatString )
+        end
+        wow:threadYield()
+        local signal = wow:getSignal()
+        if signal == SIG_RETURN then
+            return
+        end
+    end
+end
+local thread_h, status = wow:threadCreate( writeStr )
+
 if E:isDebug() then
     local fileName = "FloatingText.lua"
 	DEFAULT_CHAT_FRAME:AddMessage( sprintf("%s loaded", fileName), 1.0, 1.0, 0.0 )
