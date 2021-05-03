@@ -90,7 +90,15 @@ function ceh:handleEvent( stats )
     if  subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
 
         ------------- Healing Received ---------------
-        grp:setHealingReceived( targetName, stats[15] )
+        if grp:inPlayersParty( targetName ) then
+            local healingReceived = stats[AMOUNT_HEALED]
+            if healingReceived > 0 then
+                grp:setHealingReceived( targetName, healingReceived )
+                local healingReceivedStr = sprintf("%s healed for %d.", targetName, healingReceived )
+                ftext:insertLogEntry( healingReceivedStr )
+            end
+        end
+
         local healsString = nil
         if stats[IS_CRIT_DAMAGE] then
             healsString = sprintf("%s's %s CRITICALLY healed %s for %d.", sourceName, spellName, targetName, stats[15] )
@@ -127,14 +135,16 @@ function ceh:handleEvent( stats )
     if damage > 0 then
         if grp:inPlayersParty( targetName ) then
             grp:setDamageTaken( targetName, damage )
+            local dmgTakenStr = sprintf("%s hit %s for %d damage.", sourceName, targetName, damage )
+            ftext:insertLogEntry( dmgTakenStr )
         end
         ----------- Damage Done -----------------
             
         local dmgStr = nil
         if stats[IS_CRIT_DAMAGE] then
-            dmgString = sprintf("%s's %s(%s) CRITICALLY hit %s for %d damage.", sourceName, spellName, spellSchool,targetName, damage )
+            dmgString = sprintf("%s's %s(%s) CRITICALLY hit %s for %d damage.", "foobar", spellName, spellSchool,targetName, damage )
         else
-            dmgString = sprintf("%s's %s(%s) hit %s for %d damage.", sourceName, spellName, spellSchool,targetName, damage )
+            dmgString = sprintf("%s's %s(%s) hit %s for %d damage.", "foobar", spellName, spellSchool,targetName, damage )
         end
         combatStats:insertDamageRecord( sourceName, spellName, spellSchool, targetName, damage )
         return

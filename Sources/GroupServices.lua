@@ -359,14 +359,11 @@ function grp:getMemberNameFromFrameName( frameName )
 end
 ------------- DAMAGE METRICS ---------------------------
 function grp:setDamageTaken( memberName, damageTaken )
-    E:where( memberName .. ", " .. tostring(damageTaken) )
-
     threatStats[SUM_DAMAGE_TAKEN] = threatStats[SUM_DAMAGE_TAKEN] + damageTaken
 
     for _, v in ipairs( addonParty ) do
         if v[VT_UNIT_NAME] == memberName then
             v[VT_ACCUM_DAMAGE_TAKEN] = v[VT_ACCUM_DAMAGE_TAKEN] + damageTaken
-            E:where( memberName .. ", " .. tostring(damageTaken) )
         end
     end
 end

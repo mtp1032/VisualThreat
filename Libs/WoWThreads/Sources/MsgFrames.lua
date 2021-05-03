@@ -1,15 +1,15 @@
 --------------------------------------------------------------------------------------
--- VisualThreat.lua
+-- WoWThreads.lua
 -- AUTHOR: Michael Peterson
 -- ORIGINAL DATE: 27 August, 2020
 --------------------------------------------------------------------------------------
-local _, VisualThreat = ...
-VisualThreat.VisualThreat = {}
-mf = VisualThreat.VisualThreat
+local _, WoWThreads = ...
+WoWThreads.WoWThreads = {}
+mf = WoWThreads.WoWThreads
 
 local fileName = "MsgFrames.lua"
 local sprintf = _G.string.format
-local L = VisualThreat.L
+local L = WoWThreads.L
 local E = errors
 local DEBUG = errors.DEBUG
 
@@ -315,26 +315,18 @@ end
 function mf:postResult( result )
     assert( result ~= nil, L["ARG_NIL"])
     assert( type(result) == "table", L["ARG_INVALID_TYPE"])
-    -- assert( #result == 3, sprintf("Expected 3 elements, got %d.", #result ))
+    assert( #result == 3, sprintf("Expected 3 elements, got %d.", #result ))
     assert( result[1] == FAILURE, L["ARG_INVALID_VALUE"])
 
-    E:where()
     if errorFrame == nil then
         errorFrame = mf:createErrorMsgFrame("Errors: WoW Threads")
-        E:where()
     end
-    E:where()
     local str = nil
-    E:where()
     if result[3] ~= nil then
-        E:where()
         str = sprintf("%s\nSTACK TRACE:\n%s\n", result[2], result[3])
     else
-        E:where()
         str = sprintf("%s", result[2] )
-        print( str )
     end
-    E:where()
 
     errorFrame.Text:Insert( str )
     errorFrame:Show()

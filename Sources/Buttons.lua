@@ -26,7 +26,7 @@ local BUTTON_HEIGHT = 35 -- was 50
 
 local VT_UNIT_NAME               = grp.VT_UNIT_NAME
 local VT_UNIT_ID                 = grp.VT_UNIT_ID   
-local VT_UNIT_FRAME           = grp.VT_UNIT_FRAME
+local VT_UNIT_FRAME              = grp.VT_UNIT_FRAME
 local VT_ACCUM_THREAT_VALUE      = grp.VT_ACCUM_THREAT_VALUE
 local VT_ACCUM_DAMAGE_TAKEN      = grp.VT_ACCUM_DAMAGE_TAKEN
 local VT_ACCUM_HEALING_RECEIVED  = grp.VT_ACCUM_HEALING_RECEIVED
@@ -244,20 +244,20 @@ local function createStatusBar( parent )
   return f.statusBar
 end
 -- ******************* UNIT TESTING ******************************
-local function updateCombatStats()
-  C_Timer.NewTicker(0.5, function()
-      local memberDmg = 0
-      local memberCritDmg = 0
-      local memberDmgCasts = 0
+-- local function updateCombatStats()
+--   C_Timer.NewTicker(0.5, function()
+--       local memberDmg = 0
+--       local memberCritDmg = 0
+--       local memberDmgCasts = 0
       
-      local groupDmg, groupCritDmg, groupDmgCasts = combatStats:getGroupDamageStats()
-      local partyMembers = GetHomePartyInfo()
-      for i = 1, #partyMembers do
-        memberDmg, memberCritDmg, memberDmgCasts = combatStats:getDamageStats( partyMembers[i])
-      end
-      f.statusBar:SetSmoothedValue( val ) 
-end)
-end
+--       local groupDmg, groupCritDmg, groupDmgCasts = combatStats:getGroupDamageStats()
+--       local partyMembers = GetHomePartyInfo()
+--       for i = 1, #partyMembers do
+--         memberDmg, memberCritDmg, memberDmgCasts = combatStats:getDamageStats( partyMembers[i])
+--       end
+--       f.statusBar:SetSmoothedValue( val ) 
+-- end)
+-- end
 
 local function createEmptyButton(parent, frameName )
 

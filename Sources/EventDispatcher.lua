@@ -35,12 +35,21 @@ local THREAT_GENERATED  = btn.THREAT_GENERATED
 local HEALS_RECEIVED    = btn.HEALS_RECEIVED
 local DAMAGE_TAKEN      = btn.DAMAGE_TAKEN
 
+timer.SIG_LAST      = timer.SIG_WAKEUP
+timer.SIG_FIRST     = timer.SIG_NONE
+
+local SIG_NONE      = timer.SIG_NONE    -- default value. Means no signal is pending
+local SIG_RETURN    = timer.SIG_RETURN  -- cleanup state and return from the action routine
+local SIG_DIE       = timer.SIG_DIE     -- call threadDestroy()
+local SIG_WAKEUP    = timer.SIG_WAKEUP  -- You've returned prematurely from a yield. Do what's appropriate.
+local SIG_LAST      = timer.SIG_WAKEUP
+local SIG_FIRST     = timer.SIG_FIRST
+
 local ADDON_ENABLED = core.ADDON_ENABLED
 
-local DEFAULT_STARTING_REGION   = ft.DEFAULT_STARTING_REGION
-local DEFAULT_STARTING_XPOS     = ft.STARTING_XPOS
-local DEFAULT_STARTING_YPOS     = ft.STARTING_YPOS
-
+-- local DEFAULT_STARTING_REGION   = ft.DEFAULT_STARTING_REGION
+-- local DEFAULT_STARTING_XPOS     = ft.STARTING_XPOS
+-- local DEFAULT_STARTING_YPOS     = ft.STARTING_YPOS
 
 function evd:disableAddon()
     ADDON_ENABLED = false
@@ -125,22 +134,15 @@ local function OnEvent( self, event, ...)
         local castGUID      = arg2
         local spellId       = tonumber( arg3 )
     end
+    -------------------- PLAYER_REGEN_DISABLED ---------------
+    if event == "PLAYER_REGEN_DISABLED" then
+        ftext:setInCombat( true )
+        mf:postMsg(sprintf("Entering Combat\n"))
+    end    
     -------------------- PLAYER_REGEN_ENABLED ----------------
     if event == "PLAYER_REGEN_ENABLED" then
-        -- ceh.IN_COMBAT = false
-        -- msg:postMsg(sprintf("\n*** Combat Ended ***\n"))
-
-        -- msg:postMsg(sprintf("\nENCOUNTER SUMMARY\n"))
-        -- local addonParty = grp:getAddonPartyTable()
-        -- for _, v in ipairs( addonParty ) do
-        --     local str = mt:memberStats( v[VT_UNIT_NAME])
-        --     msg:postMsg( str )
-        -- end
-        -- msg:postMsg("\n\n")
-    end
-    -------------------- PLAYER_REGENN_DISABLED ---------------
-    if event == "PLAYER_REGEN_DISABLED" then
-        -- ceh.IN_COMBAT = true
+        mf:postMsg(sprintf("Leaving Combat\n"))
+        ftext:setInCombat( false )
     end
     -------------------------- ADDON_LOADED ----------------
     if event == "ADDON_LOADED" and arg1 == "VisualThreat" then        -- The framePosition array has been loaded by this point
@@ -161,6 +163,7 @@ local function OnEvent( self, event, ...)
         end
 
         DEFAULT_CHAT_FRAME:AddMessage( L["ADDON_LOADED_MESSAGE"], 1.0, 1.0, 0.0 )
+        mgmt:initWoWThreads()
         return        
     end   
     ------------------------------ COMBAT LOG EVENT UNFILTERED -----------
@@ -293,7 +296,7 @@ local function OnEvent( self, event, ...)
     ------------------------- PLAYER LOGOUT -----------------
     if event == "PLAYER_LOGOUT" then
         return
-    end        
+    end    
     ---------------------- UNIT THREAT SITUATION UPDATE ---------------
     if event == "UNIT_THREAT_SITUATION_UPDATE" then
 
@@ -305,6 +308,8 @@ local function OnEvent( self, event, ...)
         btn.threatIconStack:Show()
     end
     ---------------------- UNIT THREAT LIST UPDATE ---------------
+    local writer_h = nil
+
     if event == "UNIT_THREAT_LIST_UPDATE" then
         -- arg1 can be "player", "target" or "namplateN"
         local exists, count = grp:blizzPartyExists()
@@ -326,11 +331,34 @@ local function OnEvent( self, event, ...)
 
             local isTanking, status, _, _, threatValue = UnitDetailedThreatSituation( unitId, mobId )
             if threatValue ~= nil then
-                local delay = 0.0
                 if threatValue > 0 then
                     grp:setThreatValues( memberName, threatValue )
+                    local membersThreat, totalThreat = grp:getThreatStats(unitName)
+
+                    if threatValue > 0 then
+                        local logEntry = nil
+                        local relative = (membersThreat/totalThreat)*100
+                        if isTanking then
+                            if relative > 0 then
+                                logEntry = sprintf("%s (tanking) - %1.f%% of Total Threat: %d", memberName, relative, totalThreat )
+                            else
+                                logEntry = sprintf("%s (tanking) - Total Threat: %d", memberName, totalThreat )
+                            end
+                        else
+                            if relative > 0 then
+                                logEntry = sprintf("%s - %1.f%% of Total Threat: %d", memberName, relative, totalThreat )
+                            else
+                                logEntry = sprintf("%s - Total Threat: %d", memberName, totalThreat )
+                            end
+                        end
+                        ftext:insertLogEntry( logEntry )
+                    end
                 end
             end
+            if writer_h == nil then 
+                writer_h = ftext:getWriterThread()
+            end
+            -- wow:threadSendSignal( writer_h, SIG_WAKEUP )
         end
 
         if btn.threatIconStack == nil then

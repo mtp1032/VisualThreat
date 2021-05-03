@@ -18,31 +18,42 @@ Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 Libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
 Libs\AceAddon-3.0\AceAddon-3.0.xml
 Libs\AceConsole-3.0\AceConsole-3.0.xml
-##Libs\AceHook-3.0\AceHook-3.0.xml
-##Libs\AceEvent-3.0\AceEvent-3.0.xml
+# Libs\AceHook-3.0\AceHook-3.0.xml
+# Libs\AceEvent-3.0\AceEvent-3.0.xml
 Libs\AceDB-3.0\AceDB-3.0.xml
 #@end-no-lib-strip@
 
-##---------------------------------------------
-## Required / prerequisite files
-##---------------------------------------------
+# ---------------------------------------------
+#  Required / prerequisite files
+# ---------------------------------------------
 Locales\enUS.lua
 Sources\Core.lua
+Sources\Utils.lua
 Sources\Errors.lua 
 Sources\MsgFrames.lua
+# ---------- WOW THREADS ----------------
+Libs\WowThreads\Locales\EnUS.lua
+Libs\WowThreads\Sources\Errors.lua
+Libs\WowThreads\Sources\Utils.lua
+Libs\WowThreads\Sources\MsgFrames.lua
+Libs\WowThreads\Sources\Timer.lua
+Libs\WowThreads\Sources\Manager.lua
+Libs\WowThreads\Sources\Signals.lua
+Libs\WowThreads\Sources\Threads.lua
+Libs\WowThreads\Sources\Startup.lua
+# ---------- END WOW THREADS ------------
 Sources\FloatingText.lua
 Sources\GroupServices.lua
 Sources\CombatStats.lua
 Sources\Buttons.lua
 Sources\CombatEventHandler.lua
-## Sources\ThreatEventHandler.lua
+# Sources\ThreatEventHandler.lua
 Sources\Metrics.lua
-## Sources\OptionsMenu.lua
-## Sources\MiniMapIcon.lua
+Sources\OptionsMenu.lua
+Sources\MiniMapIcon.lua
 Sources\EventDispatcher.lua
-##--------------------------------------------
-## UNIT UnitTests
-##--------------------------------------------
-## Sources\UnitTests.lua
-## Sources\PrototypeTimers.lua
-## Sources\PrototypeAnimation.lua
+#  --------------------------------------------
+#  UnitTests
+#  --------------------------------------------
+# UnitTests\ThreadsTest.lua
+

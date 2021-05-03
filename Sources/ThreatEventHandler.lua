@@ -30,15 +30,17 @@ function tev:updateThreatStatus( mobId )
 
         local isTanking, _, _, _, threatValue = UnitDetailedThreatSituation( unitId, mobId )
 
+        E:where( tostring( threatValue ))
         if threatValue ~= nil then 
             if threatValue > 0 then 
                 grp:setThreatValues( entry[VT_UNIT_NAME], threatValue )
-                E:where()
                 local totalThreat, groupThreat = grp:getThreatStats( entry[VT_UNIT_NAME])
                 local percent = (totalThreat/groupThreat) * 100
                 local threatStr = sprintf("%s has %d threat (%0.1f%% of total) from %s.", entry[VT_UNIT_NAME], totalThreat, percent, UnitName( mobId ) )
+                ftext:insertLogEntry( threatStr )
                 E:where( threatStr )
             end
+
         end
     end
 end

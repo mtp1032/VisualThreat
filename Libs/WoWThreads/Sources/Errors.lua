@@ -1,23 +1,16 @@
 --------------------------------------------------------------------------------------
 -- Errors.lua
 -- AUTHOR: Michael Peterson
--- ORIGINAL DATE: 15 December, 2020
--- REMARKS: This derived directly from the original code that appeared in the WoW UI 
---          forums written Gello
--- https://wow.gamepedia.com/API_Region_GetPoint
--- https://wow.gamepedia.com/API_Region_SetPoint 
--- Interruptable Spells:
---  https://us.forums.blizzard.com/en/wow/t/detect-interruptable-spells/866016
-
+-- ORIGINAL DATE: 9 March, 2021
 --------------------------------------------------------------------------------------
-local _, VisualThreat = ...
-VisualThreat.Errors = {}
-errors = VisualThreat.Errors
-local L = VisualThreat.L
-local E = errors 
-local sprintf = _G.string.format 
+local _, WoWThreads = ...
+WoWThreads.Errors = {}	
+errors = WoWThreads.Errors	
 local fileName = "Errors.lua"
+local sprintf = _G.string.format
 
+local L = WoWThreads.L
+local E = errors
 --[[ 
 INFO: Error handling
 https://www.tutorialspoint.com/lua/lua_error_handling.htm
@@ -36,6 +29,17 @@ local FAILURE   = errors.STATUS_FAILURE
 
 errors.RESULT = {SUCCESS, nil, nil }
 local RESULT = errors.RESULT
+
+local ARG_NIL 			= lang.ARG_NIL
+local ARG_MISSING 		= lang.ARG_MISSING
+local ARG_ILL_FORMED	= lang.ARG_ILL_FORMED
+local ARG_INVALID_VALUE	= lang.ARG_INVALID_VALUE
+local ARG_INVALID_TYPE 	= lang.ARG_INVALID_TYPE
+local ARG_INVALID_OP	= lang.ARG_INVALID_OP
+
+local INVALID_THREAD_HANDLE	= lang.INVALID_HANDLE
+local UNEQUAL_VALUES		= lang.UNEQUAL_VALUES
+local INCONSISTENT_STATE	= lang.INCONSISTENT_STATE
 
 errors.DEBUG = true
 local DEBUG = errors.DEBUG
@@ -122,15 +126,13 @@ function errors:setResult( errMsg, stackTrace )
 	if stackTrace ~= nil then
 		result[3] = stackTrace
 	end
-	assert( result ~= nil )
 	return result
 end
--- e.g., local fileName, lineNumber = errors:fileLocation( debugstack() )
-function errors:errorLocation(st )
-	prefix, fileName, lineNumber = fileAndLineNo( st )
-	return prefix, fileName, lineNumber
+-- e.g., returns "[file.lua:65]"
+function errors:prefix()
+	local prefix = fileAndLineNo( debugstack(2) )
+	return prefix
 end
-
 function errors:where( msg )
 	local fn = fileAndLineNo( debugstack(2) )
 	local str = nil

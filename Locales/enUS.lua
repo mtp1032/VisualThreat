@@ -49,13 +49,26 @@ if LOCALE == "enUS" then
 
 	L["TOOLTIP_COMBAT_METRICS"]	= sprintf("If checked, an extensive set of encounter combat metrics for each group member will be published in a separate window.")
 
+	L["TIMER_STARTED"] 	= sprintf("[INFO] Dispatch timer and thread control block initialized.")
+
 	-- Generic Error Message
 
-	L["ARG_NIL"]				= "Value Was nil"
-	L["ARG_MISSING"]			= "Parameter missing"
-	L["ARG_INVALID_VALUE"]		= "Value Not In Range"
-	L["ARG_UNEXPECTED_VALUE"]	= "Value Unexpected or Not In Range"
-	L["ARG_UNEQUAL_VALUES"]		= "Unequal Values"
-	L["ARG_INVALID_TYPE"]		= "Variable was type %s, expected %s"
+	L["ARG_NIL"]				= "[ERROR] Value Was nil"
+	L["ARG_MISSING"]			= "[ERROR] Parameter missing"
+	L["ARG_INVALID_VALUE"]		= "[ERROR] Value Not In Range"
+	L["ARG_UNEXPECTED_VALUE"]	= "[ERROR] Value Unexpected or Not In Range"
+	L["ARG_UNEQUAL_VALUES"]		= "[ERROR] Unequal Values"
+	L["ARG_INVALID_TYPE"]		= "[ERROR] Invalid type"
+
+	L["THREAD_HANDLE_NIL"] 			= "[ERROR] Thread Handle nil. "
+	L["FUNCTION_ARG_NIL"]			= "[ERROR] Function Parameter in threadCreate() nil "
+
+	L["THREAD_INVALID_HANDLE_TYPE"] = "[ERROR] Thread Handle not a table. "
+	L["THREAD_INVALID_HANDLE_SIZE"] = "[ERROR] Thread Handle size invalid. "
+	L["THREAD_INVALID_EXE"]			= "[ERROR] Thread executable invalid. "
+	L["THREAD_NOT_RUNNING"]			= "[ERROR] Caller is not a running thread. "
+
+	L["SIGNAL_INVALID"]				= "[ERROR] Signal is invalid or unknown. "
+	
 	return 
 end

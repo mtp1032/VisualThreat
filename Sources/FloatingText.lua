@@ -10,173 +10,173 @@ local L = VisualThreat.L
 local E = errors
 local sprintf = _G.string.format
 
-local STATUS_SUCCESS 	= errors.STATUS_SUCCESS
-local STATUS_FAILURE 	= errors.STATUS_FAILURE
+local SUCCESS 	= errors.STATUS_SUCCESS
+local FAILURE 	= errors.STATUS_FAILURE
 ------------- FLOATING TEXT METHODS ----------------------
 
-ftext.DEFAULT_STARTING_REGION  = "CENTER"
-ftext.DEFAULT_STARTING_XPOS    = 250
-ftext.DEFAULT_STARTING_YPOS    = -100
+local SIG_NONE      = timer.SIG_NONE    -- default value. Means no signal is pending
+local SIG_RETURN    = timer.SIG_RETURN  -- cleanup state and return from the action routine
+local SIG_DIE       = timer.SIG_DIE     -- call threadDestroy()
+local SIG_WAKEUP    = timer.SIG_WAKEUP  -- You've returned prematurely from a yield. Do what's appropriate.
+local SIG_LAST      = timer.SIG_WAKEUP
+local SIG_FIRST     = timer.SIG_FIRST
 
-local DEFAULT_STARTING_REGION   = ftext.DEFAULT_STARTING_REGION
-local DEFAULT_STARTING_XPOS     = ftext.DEFAULT_STARTING_XPOS
-local DEFAULT_STARTING_YPOS     = ftext.DEFAULT_STARTING_YPOS
-local READY = true
+local IN_COMBAT = false
 
-local function delay( seconds )
-    C_Timer.After( seconds, function()
-        -- do nothing
-    end)
+local NUM_FRAMES_IN_POOL = 10
+
+local logEntryBuffer = {}
+function ftext:setInCombat( isInCombat )
+  IN_COMBAT = isInCombat
+  if IN_COMBAT == false then
+    mf:postMsg(sprintf("Clearing logEntryBuffer.\n"))
+    logEntryBuffer = {}
+  end
 end
 
-local framePool = CreateFramePool("frame", UIParent, "BackdropTemplate")
-
--- called by/in ftext:getFrame()
-local function configAnimation(f)
-
-    f.animGroup = f:CreateAnimationGroup()
-
-    -- ORDER - Refers to the order in which the animations are executed.
-    --          For example, all animations of order 1 are executed first
-    --          and simultaneously. In the code below, fadein and movein 
-    --          are order 1 animations
-    f.animGroup.fadein = f.animGroup:CreateAnimation("alpha")
-    f.animGroup.fadein:SetFromAlpha(0)
-    f.animGroup.fadein:SetToAlpha(1)
-    f.animGroup.fadein:SetOrder(1)
-    f.animGroup.movein = f.animGroup:CreateAnimation("translation")
-    f.animGroup.movein:SetOrder(1)
-
-    -- fadein and movein are executed concurrently and before 
-    -- any order 2 or order 3 animations.
-
-    f.animGroup.move = f.animGroup:CreateAnimation("translation")
-    f.animGroup.move:SetOrder(2)
-
-    -- fadeout and moveout are order 3 animations and are 
-    -- executed last.
-    f.animGroup.fadeout = f.animGroup:CreateAnimation("alpha")
-    f.animGroup.fadeout:SetFromAlpha(1)
-    f.animGroup.fadeout:SetToAlpha(0)
-    f.animGroup.fadeout:SetOrder(3)
-
-    f.animGroup.moveout = f.animGroup:CreateAnimation("translation")
-    f.animGroup.moveout:SetOrder(3)
-    
-    -- hide frame when animation ends
-    f.animGroup:SetScript("OnFinished",
-    function(self) 
-        self:GetParent():Hide() 
-        framePool:Release(f)
-    end)
+local writer_h = nil
+function ftext:getWriterThread()
+    return writer_h
+end
+function ftext:insertLogEntry( logEntry )
+    table.insert( logEntryBuffer, logEntry )
+    if writer_h == nil then
+      return
+    end
+end
+local function removeLogEntry()
+  local logEntry = table.remove( logEntryBuffer, 1 )
+  -- E:where("Log entries = " .. tostring( #logEntryBuffer ))
+  return logEntry
 end
 
--- called by/in ftext:displayString() and ftext:displayStrings()
-local function updateAnimation(f, duration, Xdistance, Ydistance )
-    -- These are order 1 animations
-    local fadeDuration = duration/4         -- fadeDuration = 3
-    local moveDuration = duration/2         -- moveDuration = 6
-
-    -- The order 1 animations
-    -- Assuming a duration of 12 seconds, the fadeDuration is 3 seconds.
-    --  During that 3 seconds, the text will move 96 pixels assuming
-    --  the screen height is 384.
-    f.animGroup.fadein:SetDuration(  fadeDuration )
-    f.animGroup.movein:SetOffset( Xdistance/4, Ydistance/4 )    -- Ydistance/4 = 96
-    f.animGroup.movein:SetDuration( fadeDuration )
-
-    -- These two are order 2 animations
-    f.animGroup.move:SetOffset( Xdistance/2,Ydistance/2 )       -- Ydistance/2 = 192
-    f.animGroup.move:SetDuration( moveDuration)
-
-    -- These are order 3 animations
-    f.animGroup.fadeout:SetDuration( fadeDuration )
-    f.animGroup.moveout:SetOffset( Xdistance/4, Ydistance/4 )   -- Ydistance/4 = 96
-    f.animGroup.moveout:SetDuration( fadeDuration )
+local framePool = {}
+local function createNewFrame()
+  local f = CreateFrame( "Frame", nil, UIParent, "BackdropTemplate")
+  f.Text1 = f:CreateFontString()
+  -- f.Text1:SetFontObject( GameFontNormal)
+  -- f.Text1:SetFontObject( GameFontNormalSmall )
+  f.Text1:SetFontObject( GameFontNormalLarge )
+  f.Text1:SetWidth( 600 )
+  f.Text1:SetJustifyH("LEFT")
+  f.Text1:SetJustifyV("TOP")
+  f.Done = false
+  f.TotalTicks = 0
+  f.UpdateTicks = 2 -- Move the frame once every 2 ticks
+  f.UpdateTickCount = f.UpdateTicks
+  return f
 end
--- called by/in ftext:displayString() and ftext:displayStrings()
-local function getFrame( region, startingXpos, startingYpos)
-    f = framePool:Acquire()
-    f.Text = f:CreateFontString(nil,"ARTWORK","GameFontNormalLarge")
-    f.Text:SetPoint("LEFT", 0, 0 )      -- text will be justified leftext.
-    f:SetSize(400,20)
-
-    -- When the frame is created f.SetPoint() is the starting position
-    if startingXpos == nil then startingXpos = DEFAULT_STARTING_XPOS end
-    if startingYpos == nil then startingYpos = DEFAULT_STARTING_YPOS end
-
-    f:SetPoint(region, startingXpos, startingYpos )
-    f:SetAlpha(0)
-    f.ScrollXMax = (UIParent:GetWidth() * UIParent:GetEffectiveScale())/2 -- one half of max scroll width
-    f.ScrollYMax = (UIParent:GetHeight() * UIParent:GetEffectiveScale())/2 -- one half of max scroll height
-
-    configAnimation(f)
-    f:Show()
+local function initFramePool( numEntries )
+    for i = 1, numEntries do
+        local f = createNewFrame()
+        table.insert( framePool, f )
+    end
+end
+local function releaseFrame( f )
+  table.insert( framePool, f )
+end
+local function acquireFrame()
+    local f = table.remove( framePool )
+    if f == nil then 
+      f = createNewFrame() 
+    end
     return f
 end
 
--- PUBLIC/EXPORTED FUNCTION
-function ftext:displayString( threatStr )
+initFramePool( NUM_FRAMES_IN_POOL )
 
-    local f = getFrame("CENTER", 350, -100 )
-    f.Text:SetText("")
-    f.Text:SetText( threatStr )
+local function writeLogEntry( logEntry )
+    local ymove = 1.5 -- move this much each update
+    local xmove = 0
+    local xos = 400
+    local yos = -200
 
-    local duration = 12
-    local Xdistance = 0
-    local Ydistance = f.ScrollYMax   -- ScrollYMax = 384 on my display
-    updateAnimation(f, duration, Xdistance, Ydistance )
-    E:where( f.Text:GetText() )
-    f.animGroup:Play()
+    local f = acquireFrame()
+
+    f:ClearAllPoints()
+    f.Text1:SetPoint("CENTER", UIParent, xos, yos )
+    f.Text1:SetText( logEntry )
+    f:Show()
+    f:SetScript("OnUpdate", 
+  
+          function(self, elapsed)
+              self.UpdateTickCount = self.UpdateTickCount - 1
+              if self.UpdateTickCount > 0 then
+                return
+              end
+              self.UpdateTickCount = self.UpdateTicks
+              self.TotalTicks = self.TotalTicks + 1
+              
+              if self.TotalTicks == 40 then f:SetAlpha( 0.8 ) end
+              if self.TotalTicks == 50 then f:SetAlpha( 0.6 ) end
+              if self.TotalTicks == 60 then f:SetAlpha( 0.4 ) end
+              if self.TotalTicks == 70 then f:SetAlpha( 0.2 ) end
+              if self.TotalTicks == 90 then f:SetAlpha( 0.1 ) end
+              if self.TotalTicks >= 100 then 
+                f:Hide()
+                f.Done = true
+              else
+                yos = yos + ymove
+                xos = xos + xmove
+                f:ClearAllPoints()
+                f.Text1:SetPoint("CENTER", UIParent, xos, yos ) -- reposition the text to its new location
+              end
+
+          end)
+    if f.Done == true then
+      releaseFrame(f)
+    end
+end
+function ftext:publishLogEntry()
+    local done = false
+    
+    while not done do
+        if IN_COMBAT == true then
+          local logEntry = removeLogEntry()
+          if logEntry ~= nil then
+            writeLogEntry( logEntry )
+          end
+        end
+        thread:yield()
+        signal = thread:getSignal()
+        if signal == SIG_RETURN then
+          done = true
+        end
+    end
+    mf:postMsg( sprintf("writer_h received %s and terminated.\n", thread:getSignalName( signal )))
 end
 
--- PUBLIC/EXPORTED function
-function ftext:displayStrings( threatStrings )
-    if not READY then
+local function main()
+    local result = {SUCCESS, nil, nil }
+
+    -- create the writer_h thread
+    local fps = (1/GetFramerate())
+    -- mf:postMsg( sprintf("%0.3f frames/second. x300 = %0.3f seconds.\n ", fps, 300*fps ))
+    local yieldInterval = (1/GetFramerate()) * 25 -- about 0.5 seconds
+    writer_h, result = thread:create( yieldInterval, function() ftext:publishLogEntry() end )
+    if result[1] ~= SUCCESS then
+        mf:postResult( result )
         return
     end
-    READY = false
-    local str = {}
-	for i, entry in ipairs( threatStrings ) do
-        local f = getFrame("CENTER", 0, DEFAULT_STARTING_YPOS )
-		f.Text:SetText( entry[2] )
-        -- msg:postMsg( sprintf("%s\n", entry[2]))
 
-        -- the duration specifies the number seconds the line of text will take
-        -- to scroll across the region.
-		local duration = 12
-		local Xdistance = 0
-		local Ydistance = f.ScrollYMax/2   -- ScrollYMax = 384
-		updateAnimation(f, duration, Xdistance, Ydistance )
-        -- local delay = (i - 1)/2             -- 0,   0.5, 1.0, 1.5, ...
-        -- local delay = (i - 1)/2 + 0.5    -- 0.5, 1.0, 1.5, ... 
-        local delay = (i - 1)/2 + 1.0    -- 1:0, 2:1.5, 3:3 
-	    C_Timer.After( delay,                   -- f.animGroup:Play() fires once per second.
-		    function(self)
-                -- msg:postMsg( sprintf("%0.1f : %s\n", delay, f.Text:GetText() ))
-			    f.animGroup:Play()
-		end)
-	end
-    READY = true
-end
-
-local function writeStr()
-    local threatString = nil
-
-    while threatString == nil do
-        threatString = getThreatString( threadStrTable )
-        if threatString ~= nil then
-            ftext:displayString( threatString )
-        end
-        wow:threadYield()
-        local signal = wow:getSignal()
-        if signal == SIG_RETURN then
-            return
-        end
+    -- Now, we wait
+    local done = false
+    local signal = SIG_NONE
+    while signal ~= SIG_RETURN do
+        thread:yield()
+        signal = thread:getSignal()
     end
+    mf:postMsg( sprintf("main_h received %s and terminated.\n", thread:getSignalName( signal )))
 end
-local thread_h, status = wow:threadCreate( writeStr )
 
+local result = {SUCCESS, nil, nil}
+local main_h, result = thread:create( 0.5, main )
+if main_h == nil then
+  mf:postResult( result )
+  return
+end
+
+  
 if E:isDebug() then
     local fileName = "FloatingText.lua"
 	DEFAULT_CHAT_FRAME:AddMessage( sprintf("%s loaded", fileName), 1.0, 1.0, 0.0 )
